@@ -5,9 +5,9 @@ import {
   Activity,
   GitMerge,
   Radio,
+  Rss,
   ShieldAlert,
   TrendingUp,
-  Users,
 } from "lucide-react";
 
 import { AlertBanner } from "@/components/dashboard/alert-banner";
@@ -58,9 +58,8 @@ export default function DashboardResumenPage() {
           Resumen ejecutivo
         </h1>
         <p className="max-w-3xl text-xs text-zinc-500">
-          Monitoreo de narrativas de apología y propaganda en redes, correlacionadas
-          con hechos delictivos públicos. Los datos son demostrativos; la correlación no
-          implica causalidad ni constituye evidencia pericial.
+          Vista general de narrativas de apología y propaganda en redes. Los datos son
+          demostrativos y no constituyen evidencia pericial.
         </p>
       </motion.header>
 
@@ -104,30 +103,36 @@ export default function DashboardResumenPage() {
           formatValue={formatCompactEsMx}
         />
         <KpiCard
-          label="Hechos correlacionados"
+          label="Cruce con hechos públicos (demo)"
           value={kpi.hechosCorrelacionados}
-          subtext={`Confianza ${kpi.hechosCorrelacionConfianzaPct}%`}
+          subtext={`Ejemplos · ${kpi.hechosCorrelacionConfianzaPct}% confianza simulada`}
           icon={GitMerge}
           variant="warning"
         />
         <KpiCard
-          label="Autores clave"
+          label="Fuentes clave"
           value={kpi.autoresClave}
-          subtext="Red monitoreada"
-          icon={Users}
+          subtext="Cuentas monitoreadas"
+          icon={Rss}
         />
       </motion.section>
 
       <motion.section
         variants={item}
-        className="grid grid-cols-1 gap-4 xl:grid-cols-5"
+        className="grid grid-cols-1 gap-4 xl:grid-cols-12"
       >
-        <div className="xl:col-span-3">
-          <ChartErrorBoundary title="Correlación temporal">
+        <div className="min-w-0 xl:col-span-8 space-y-2">
+          <ChartErrorBoundary title="Publicaciones por hora">
             <CorrelacionTemporalChart />
           </ChartErrorBoundary>
+          <p className="text-[11px] leading-relaxed text-zinc-500">
+            <strong className="font-medium text-zinc-400">Lectura rápida:</strong>{" "}
+            barras = volumen de publicaciones (parte roja = alto riesgo); línea punteada
+            = índice de apología; puntos rojos = horas con un hecho público de ejemplo en
+            el mock. No implica que un hecho haya sido causado por un post.
+          </p>
         </div>
-        <div className="xl:col-span-2">
+        <div className="min-w-0 xl:col-span-4">
           <ChartErrorBoundary title="Distribución por categoría">
             <CategoriaDonut />
           </ChartErrorBoundary>

@@ -42,10 +42,11 @@ function onSelectString(setter: (v: string) => void) {
 const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
   narrativas: "Narrativas",
-  autores: "Autores",
-  correlacion: "Correlación",
-  explorador: "Explorador IA",
+  fuentes: "Fuentes",
+  historial: "Historial",
+  inteligencia: "Inteligencia estratégica",
   alertas: "Alertas",
+  Explorador: "Explorador",
 };
 
 export function Topbar() {

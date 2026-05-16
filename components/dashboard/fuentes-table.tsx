@@ -39,7 +39,7 @@ function PlataformaIcon({ p }: { p: Plataforma }) {
 
 const columnHelper = createColumnHelper<Autor>();
 
-export function AuthorsTable({ data }: { data: Autor[] }) {
+export function FuentesTable({ data }: { data: Autor[] }) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -55,7 +55,7 @@ export function AuthorsTable({ data }: { data: Autor[] }) {
         ),
       }),
       columnHelper.accessor("handle", {
-        header: "Handle",
+        header: "Cuenta",
         cell: (ctx) => (
           <div className="flex min-w-0 items-center gap-2">
             <PlataformaIcon p={ctx.row.original.plataforma} />
@@ -117,7 +117,7 @@ export function AuthorsTable({ data }: { data: Autor[] }) {
         header: "Acciones",
         cell: (ctx) => (
           <Link
-            href={`/dashboard/explorador?autor=${encodeURIComponent(ctx.row.original.handle)}`}
+            href={`/dashboard/fuentes/historial?id=${encodeURIComponent(ctx.row.original.id)}`}
             onClick={(e) => e.stopPropagation()}
             className={cn(
               buttonVariants({ variant: "ghost", size: "sm" }),
@@ -157,7 +157,7 @@ export function AuthorsTable({ data }: { data: Autor[] }) {
   return (
     <div className="space-y-3">
       <Input
-        placeholder="Buscar handle o plataforma…"
+        placeholder="Buscar cuenta o plataforma…"
         value={globalFilter}
         onChange={(e) => setGlobalFilter(e.target.value)}
         className="max-w-sm border-zinc-800 bg-zinc-900"
@@ -193,6 +193,7 @@ export function AuthorsTable({ data }: { data: Autor[] }) {
             {table.getRowModel().rows.map((row) => {
               const a = row.original;
               const open = expandedId === a.id;
+              const historial = getPublicacionesByAutorId(a.id);
               return (
                 <Fragment key={row.id}>
                   <tr
@@ -215,17 +216,21 @@ export function AuthorsTable({ data }: { data: Autor[] }) {
                     <tr className="bg-zinc-950/80">
                       <td colSpan={columns.length} className="px-4 py-3">
                         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                          Publicaciones recientes (mock)
+                          Histórico de publicaciones (demo)
                         </p>
-                        <ul className="mt-2 space-y-1 text-xs text-zinc-400">
-                          {getPublicacionesByAutorId(a.id).map((p) => (
+                        <p className="mt-1 text-[11px] text-zinc-600">
+                          {historial.length} entradas en el dataset de ejemplo.
+                          Pulsa la fila de nuevo para colapsar.
+                        </p>
+                        <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto text-xs text-zinc-400">
+                          {historial.map((p) => (
                             <li key={p.id} className="font-mono">
                               <span className="text-zinc-500">{p.id}</span> —{" "}
                               {p.textoResumido.slice(0, 120)}
                               …
                             </li>
                           ))}
-                          {getPublicacionesByAutorId(a.id).length === 0 ? (
+                          {historial.length === 0 ? (
                             <li>Sin publicaciones en el conjunto demo.</li>
                           ) : null}
                         </ul>

@@ -8,7 +8,6 @@ import type {
   NarrativaRadarDato,
   Publicacion,
   PuntoCorrelacionHora,
-  TimelineCorrelacionPunto,
 } from "@/lib/types";
 
 /** Fecha fija de referencia para datos reproducibles (demo). */
@@ -798,16 +797,6 @@ export const engagementPorCategoria: EngagementPorCategoria[] =
       pctDelTotal: Math.round((engagement / 1_200_000) * 1000) / 10,
     };
   });
-
-export const timelineCorrelacion: TimelineCorrelacionPunto[] = [
-  { fecha: "2026-05-09", publicaciones: 142, hechos: 1 },
-  { fecha: "2026-05-10", publicaciones: 168, hechos: 1 },
-  { fecha: "2026-05-11", publicaciones: 155, hechos: 1 },
-  { fecha: "2026-05-12", publicaciones: 190, hechos: 1 },
-  { fecha: "2026-05-13", publicaciones: 210, hechos: 1 },
-  { fecha: "2026-05-14", publicaciones: 232, hechos: 1 },
-  { fecha: "2026-05-15", publicaciones: 248, hechos: 0 },
-];
 
 export function getAutorById(id: string): Autor | undefined {
   return autores.find((a) => a.id === id);

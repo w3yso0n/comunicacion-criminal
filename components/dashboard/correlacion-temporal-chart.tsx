@@ -73,8 +73,8 @@ export function CorrelacionTemporalChart() {
   const tickMono = { fontFamily: "var(--font-geist-mono)", fontSize: 10, fill: "#71717a" };
 
   return (
-    <div className="relative rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
-      <div className="absolute right-4 top-3 z-10 flex flex-col gap-1 rounded-md border border-zinc-800/80 bg-zinc-950/90 px-2 py-1.5 text-[10px] text-zinc-400">
+    <div className="w-full min-w-0 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-zinc-800/60 pb-2 text-[10px] text-zinc-400">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-sm bg-zinc-600" />
           <span>Propaganda</span>
@@ -88,25 +88,34 @@ export function CorrelacionTemporalChart() {
           <span>Índice apología</span>
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={240}>
-        <ComposedChart
-          data={chartData}
-          margin={{ top: 36, right: 12, left: 0, bottom: 0 }}
-        >
+      <div className="h-[280px] w-full min-w-0 sm:h-[300px] xl:h-[320px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={chartData}
+            margin={{ top: 26, right: 28, left: 6, bottom: 4 }}
+          >
           <CartesianGrid strokeDasharray="1 3" stroke="#27272a" />
-          <XAxis dataKey="hora" tick={tickMono} interval={3} />
+          <XAxis
+            dataKey="hora"
+            tick={tickMono}
+            interval={2}
+            height={28}
+            tickMargin={6}
+          />
           <YAxis
             yAxisId="left"
             tick={tickMono}
-            width={36}
+            width={44}
             allowDecimals={false}
+            tickMargin={4}
           />
           <YAxis
             yAxisId="right"
             orientation="right"
             domain={[0, 100]}
             tick={tickMono}
-            width={32}
+            width={44}
+            tickMargin={4}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: "transparent" }} />
           <Bar
@@ -164,6 +173,7 @@ export function CorrelacionTemporalChart() {
           ))}
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CENTINELA — Monitoreo narrativo",
   description:
-    "Sistema de monitoreo de apología, propaganda criminal y correlación con hechos delictivos públicos (demo).",
+    "Monitoreo de apología y propaganda criminal en redes sociales (demo).",
 };
 
 export default function RootLayout({

@@ -156,9 +156,3 @@ export interface EngagementPorCategoria {
   engagement: number;
   pctDelTotal: number;
 }
-
-export interface TimelineCorrelacionPunto {
-  fecha: string;
-  publicaciones: number;
-  hechos: number;
-}

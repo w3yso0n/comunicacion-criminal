@@ -6,13 +6,13 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   Bell,
-  GitMerge,
+  Brain,
   LayoutDashboard,
   PanelLeftClose,
   PanelLeftOpen,
+  Rss,
   Search,
   Target,
-  Users,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,9 +30,13 @@ type NavItem = {
 const nav: NavItem[] = [
   { href: "/dashboard", label: "Resumen", icon: LayoutDashboard },
   { href: "/dashboard/narrativas", label: "Narrativas", icon: Target },
-  { href: "/dashboard/autores", label: "Autores", icon: Users },
-  { href: "/dashboard/correlacion", label: "Correlación", icon: GitMerge },
-  { href: "/dashboard/explorador", label: "Explorador IA", icon: Search },
+  { href: "/dashboard/fuentes", label: "Fuentes", icon: Rss },
+  { href: "/Explorador", label: "Explorador", icon: Search },
+  {
+    href: "/dashboard/inteligencia",
+    label: "Inteligencia estratégica",
+    icon: Brain,
+  },
   { href: "/dashboard/alertas", label: "Alertas", icon: Bell, badge: true },
 ];
 
@@ -79,7 +83,10 @@ export function Sidebar() {
           const active =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
+              : item.href === "/Explorador"
+                ? pathname === "/Explorador" ||
+                  pathname.startsWith("/Explorador/")
+                : pathname.startsWith(item.href);
           const Icon = item.icon;
           return (
             <motion.div key={item.href} whileHover={{ x: 2 }}>

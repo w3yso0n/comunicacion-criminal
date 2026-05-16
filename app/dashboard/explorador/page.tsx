@@ -1,22 +1,20 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { Skeleton } from "@/components/ui/skeleton";
-import { ExploradorClient } from "./explorador-client";
-
-function ExploradorFallback() {
-  return (
-    <div className="mx-auto max-w-[720px] space-y-3 p-2">
-      <Skeleton className="h-8 w-48 bg-zinc-800" />
-      <Skeleton className="h-24 w-full bg-zinc-800" />
-      <Skeleton className="h-40 w-full bg-zinc-800" />
-    </div>
-  );
-}
-
-export default function ExploradorPage() {
-  return (
-    <Suspense fallback={<ExploradorFallback />}>
-      <ExploradorClient />
-    </Suspense>
-  );
+/** Ruta histórica: las denuncias viven en `/Explorador`. */
+export default async function LegacyDashboardExploradorPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const q = new URLSearchParams();
+  const fuente = sp.fuente;
+  const autor = sp.autor;
+  if (typeof fuente === "string" && fuente.length > 0) {
+    q.set("fuente", fuente);
+  } else if (typeof autor === "string" && autor.length > 0) {
+    q.set("fuente", autor);
+  }
+  const suffix = q.size > 0 ? `?${q.toString()}` : "";
+  redirect(`/Explorador${suffix}`);
 }

@@ -13,8 +13,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <footer className="shrink-0 border-t border-zinc-800 px-4 py-2 text-center text-[10px] text-zinc-600">
-          Contenido demostrativo. El análisis discursivo y la correlación no implican
-          causalidad ni sustituyen investigación oficial.
+          Contenido demostrativo. El análisis discursivo no implica causalidad ni sustituye
+          investigación oficial.
         </footer>
       </div>
     </div>
