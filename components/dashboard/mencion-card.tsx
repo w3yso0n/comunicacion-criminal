@@ -77,7 +77,7 @@ export function MencionCard({
       initial="hidden"
       animate="show"
       className={cn(
-        "rounded-xl border border-zinc-800 bg-zinc-900/80 p-4 shadow-sm",
+        "h-full rounded-xl border border-zinc-800 bg-zinc-900/80 p-3.5 shadow-sm md:p-4",
         mencion.nivelRiesgo === "critico" && "border-red-900/50",
         mencion.nivelRiesgo === "alto" && "border-amber-900/40",
       )}

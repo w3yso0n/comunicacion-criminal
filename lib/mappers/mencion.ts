@@ -30,6 +30,8 @@ export type MencionRow = {
   cluster_id: string | null;
   cluster_role: string | null;
   captura_url: string | null;
+  lat: number | null;
+  lon: number | null;
 };
 
 function toIsoDate(value: Date | string): string {
@@ -112,5 +114,7 @@ export function mapMencionRow(row: MencionRow): Mencion {
     clusterId: row.cluster_id ?? undefined,
     clusterRole: row.cluster_role ?? undefined,
     capturaUrl: row.captura_url ?? undefined,
+    lat: row.lat ?? undefined,
+    lon: row.lon ?? undefined,
   };
 }

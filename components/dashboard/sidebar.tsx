@@ -8,6 +8,7 @@ import {
   Bell,
   Brain,
   LayoutDashboard,
+  Map,
   PanelLeftClose,
   PanelLeftOpen,
   Rss,
@@ -32,6 +33,7 @@ const nav: NavItem[] = [
   { href: "/dashboard/narrativas", label: "Narrativas", icon: Target },
   { href: "/dashboard/fuentes", label: "Fuentes", icon: Rss },
   { href: "/Explorador", label: "Explorador", icon: Search },
+  { href: "/Mapa", label: "Mapa", icon: Map },
   {
     href: "/dashboard/inteligencia",
     label: "Inteligencia estratégica",

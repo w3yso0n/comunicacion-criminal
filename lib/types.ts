@@ -154,6 +154,8 @@ export interface Mencion {
   clusterId?: string;
   clusterRole?: string;
   capturaUrl?: string;
+  lat?: number;
+  lon?: number;
 }
 
 export interface KpiDia {
