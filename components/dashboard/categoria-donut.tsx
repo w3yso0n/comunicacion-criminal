@@ -2,7 +2,8 @@
 
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
-import { categoriaDistribucion } from "@/lib/mock-data";
+import { ChartEmpty } from "@/components/dashboard/chart-empty";
+import { useDashboardCharts } from "@/lib/hooks/use-dashboard-charts";
 import { formatIntegerEsMx } from "@/lib/utils";
 
 const COLORS = [
@@ -11,10 +12,23 @@ const COLORS = [
   "#eab308",
   "#a855f7",
   "#64748b",
+  "#3b82f6",
+  "#22c55e",
 ];
 
 export function CategoriaDonut() {
-  const data = categoriaDistribucion.map((c) => ({
+  const { data, loading } = useDashboardCharts();
+  const categoriaDistribucion = data?.categoriaDistribucion ?? [];
+
+  if (loading) {
+    return <div className="h-[320px] animate-pulse rounded-xl border border-zinc-800 bg-zinc-900/50" />;
+  }
+
+  if (categoriaDistribucion.length === 0) {
+    return <ChartEmpty message="Sin menciones clasificadas por tipo principal." />;
+  }
+
+  const chartRows = categoriaDistribucion.map((c) => ({
     name: c.label,
     value: c.pct,
   }));
@@ -27,7 +41,7 @@ export function CategoriaDonut() {
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
           <Pie
-            data={data}
+            data={chartRows}
             dataKey="value"
             nameKey="name"
             cx="50%"
@@ -38,7 +52,7 @@ export function CategoriaDonut() {
             isAnimationActive
             animationDuration={800}
           >
-            {data.map((_, i) => (
+            {chartRows.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="#18181b" />
             ))}
           </Pie>

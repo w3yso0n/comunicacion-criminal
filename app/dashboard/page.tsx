@@ -149,14 +149,10 @@ export default function DashboardResumenPage() {
         variants={item}
         className="grid grid-cols-1 gap-4 xl:grid-cols-12"
       >
-        <div className="min-w-0 xl:col-span-8 space-y-2">
-          <ChartErrorBoundary title="Publicaciones por hora">
+        <div className="min-w-0 xl:col-span-8">
+          <ChartErrorBoundary title="Menciones por hora">
             <CorrelacionTemporalChart />
           </ChartErrorBoundary>
-          <p className="text-[11px] leading-relaxed text-zinc-500">
-            <strong className="font-medium text-zinc-400">Visualización demo.</strong>{" "}
-            Este gráfico mostrará la distribución temporal de menciones cuando se implemente la agregación por hora.
-          </p>
         </div>
         <div className="min-w-0 xl:col-span-4">
           <ChartErrorBoundary title="Distribución por categoría">

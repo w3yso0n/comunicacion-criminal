@@ -1,22 +1,28 @@
 "use client";
 
+import type { NarrativaRadarDato } from "@/lib/types";
 import { formatIntegerEsMx } from "@/lib/utils";
-import { narrativasRadar } from "@/lib/mock-data";
 
-export function NarrativasTabla() {
+type NarrativasTablaProps = {
+  items: NarrativaRadarDato[];
+};
+
+export function NarrativasTabla({ items }: NarrativasTablaProps) {
+  if (items.length === 0) return null;
+
   return (
     <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-800">
       <table className="w-full text-left text-xs">
         <thead className="border-b border-zinc-800 bg-zinc-900/80 text-[10px] uppercase tracking-widest text-zinc-500">
           <tr>
-            <th className="px-3 py-2">Narrativa</th>
-            <th className="px-3 py-2">Score</th>
-            <th className="px-3 py-2">Δ sem.</th>
-            <th className="px-3 py-2">Descripción</th>
+            <th className="px-3 py-2">Subtipo</th>
+            <th className="px-3 py-2">Intensidad</th>
+            <th className="px-3 py-2">Δ 7 días</th>
+            <th className="px-3 py-2">Detalle</th>
           </tr>
         </thead>
         <tbody>
-          {narrativasRadar.map((n) => (
+          {items.map((n) => (
             <tr key={n.id} className="border-b border-zinc-800/80">
               <td className="px-3 py-2 font-medium text-zinc-200">{n.label}</td>
               <td className="px-3 py-2 font-mono text-zinc-300">

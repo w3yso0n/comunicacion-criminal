@@ -1,21 +1,14 @@
 import { z } from "zod";
 
-const estados = z.enum([
-  "Jalisco",
-  "Sinaloa",
-  "Guanajuato",
-  "Michoacán",
-  "Tamaulipas",
-]);
-
 const severidadSenal = z.enum(["alta", "media", "baja"]);
 const tendencia = z.enum(["sube", "baja", "estable"]);
-const fuenteModelo = z.enum(["deepseek", "mock"]);
+const fuenteModelo = z.enum(["deepseek"]);
 
 const narrativaGrupo = z.object({
   grupoId: z.string(),
   grupoNombre: z.string(),
-  estado: estados,
+  /** Ubicación principal detectada en BD (estado, municipio o zona). */
+  estado: z.string(),
   resumenNarrativa: z.string(),
   vectoresNarrativos: z.array(z.string()),
   actualizadoEn: z.string(),
@@ -36,16 +29,21 @@ const senalEscalada = z.object({
 
 const correlacion = z.object({
   id: z.string(),
+  /** Encabezado corto en lenguaje claro (ej. «Autor reincidente: @cuenta»). */
+  titulo: z.string().optional(),
   resumen: z.string(),
   indiceConfianza: z.number().min(0).max(100),
   publicacionesEnVentana: z.number().int().nonnegative(),
   hechoTipo: z.string(),
   zona: z.string(),
-  ventanaHoras: z.number().int().positive(),
+  /** Texto fijo de alcance (sin ventanas 24h/48h salvo cruce ±72h explícito en la alerta). */
+  alcanceEtiqueta: z.string().optional(),
+  ventanaHoras: z.number().int().nonnegative().optional(),
 });
 
 const zonaTension = z.object({
-  estado: estados,
+  /** Territorio real en datos: estado, municipio o zona (ej. Estado de México, Toluca). */
+  zona: z.string(),
   intensidad0_100: z.number().min(0).max(100),
   tendencia,
   notaCorta: z.string(),

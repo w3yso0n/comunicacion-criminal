@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { analyzeInteligencia } from "@/lib/inteligencia-analyze";
+import { loadInteligenciaCached } from "@/lib/inteligencia-analyze";
 
 function isConnectionError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -8,26 +8,13 @@ function isConnectionError(err: unknown): boolean {
   return msg.includes("econnrefused") || msg.includes("connection") || msg.includes("timeout");
 }
 
-export async function POST(req: Request) {
-  let region = "todas";
-  let periodo = "7d";
-  let force = false;
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const region = searchParams.get("region") ?? "todas";
+  const periodo = searchParams.get("periodo") ?? "7d";
 
   try {
-    const body = (await req.json()) as {
-      region?: string;
-      periodo?: string;
-      force?: boolean;
-    };
-    if (typeof body.region === "string") region = body.region;
-    if (typeof body.periodo === "string") periodo = body.periodo;
-    if (body.force === true) force = true;
-  } catch {
-    /* defaults */
-  }
-
-  try {
-    const result = await analyzeInteligencia({ region, periodo, force });
+    const result = await loadInteligenciaCached({ region, periodo });
     return NextResponse.json({
       ok: result.ok,
       source: result.source,

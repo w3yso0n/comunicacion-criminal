@@ -2,10 +2,22 @@
 
 import { motion } from "motion/react";
 
-import { categoriaDistribucion } from "@/lib/mock-data";
+import { ChartEmpty } from "@/components/dashboard/chart-empty";
+import { useDashboardCharts } from "@/lib/hooks/use-dashboard-charts";
 import { formatIntegerEsMx } from "@/lib/utils";
 
 export function CategoriaTablaDetalle() {
+  const { data, loading } = useDashboardCharts();
+  const categoriaDistribucion = data?.categoriaDistribucion ?? [];
+
+  if (loading) {
+    return <div className="h-32 animate-pulse rounded-lg border border-zinc-800 bg-zinc-900/40" />;
+  }
+
+  if (categoriaDistribucion.length === 0) {
+    return <ChartEmpty message="Sin distribución por tipo principal." />;
+  }
+
   return (
     <div className="space-y-3">
       {categoriaDistribucion.map((c) => (
@@ -24,7 +36,7 @@ export function CategoriaTablaDetalle() {
               transition={{ duration: 0.55, ease: "easeOut" as const }}
             />
           </div>
-          <p className="mt-2 text-xs italic text-zinc-500">{c.ejemplo}</p>
+          <p className="mt-2 text-xs text-zinc-500">{c.ejemplo}</p>
         </div>
       ))}
     </div>

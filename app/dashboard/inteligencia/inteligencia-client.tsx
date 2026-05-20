@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Brain,
@@ -26,22 +26,21 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { emptyInteligenciaPayload } from "@/lib/inteligencia-empty";
 import type { InteligenciaIAPayload } from "@/lib/inteligencia-schema";
-import { mockInteligenciaPayload } from "@/lib/mock-inteligencia";
 import { useDashboardFiltersStore } from "@/lib/stores/dashboard-filters-store";
+import { labelPrioridad } from "@/lib/db/inteligencia-senales";
 import { cn, formatIntegerEsMx } from "@/lib/utils";
 
 const LINE_COLORS = ["#f87171", "#fbbf24", "#60a5fa", "#a78bfa", "#34d399"];
 
 type ApiEnvelope = {
   ok: boolean;
-  source?: string;
   message?: string;
   data: InteligenciaIAPayload;
 };
@@ -65,7 +64,11 @@ function filtrarPorRegion(
   region: string,
 ): InteligenciaIAPayload {
   if (region === "todas") return data;
-  const narrativas = data.narrativasPorGrupo.filter((n) => n.estado === region);
+  const narrativas = data.narrativasPorGrupo.filter(
+    (n) =>
+      n.estado === region ||
+      n.estado.toLowerCase().includes(region.toLowerCase()),
+  );
   const ids = new Set(narrativas.map((n) => n.grupoId));
   return {
     ...data,
@@ -76,7 +79,11 @@ function filtrarPorRegion(
     correlaciones: data.correlaciones.filter(
       (c) => c.zona.includes(region) || c.zona.startsWith(region),
     ),
-    zonasTension: data.zonasTension.filter((z) => z.estado === region),
+    zonasTension: data.zonasTension.filter(
+      (z) =>
+        z.zona === region ||
+        z.zona.toLowerCase().includes(region.toLowerCase()),
+    ),
     tendenciasEjeTemporal: data.tendenciasEjeTemporal,
     tendenciasPorGrupo: data.tendenciasPorGrupo,
     tendenciasPorZona: data.tendenciasPorZona,
@@ -102,36 +109,59 @@ export function InteligenciaClient() {
     searchParams.get("fuente") ?? searchParams.get("autor");
 
   const region = useDashboardFiltersStore((s) => s.region);
-  const datePreset = useDashboardFiltersStore((s) => s.datePreset);
 
-  const [raw, setRaw] = useState<InteligenciaIAPayload>(mockInteligenciaPayload);
-  const [fuente, setFuente] = useState<string>("mock");
-  const [mensajeApi, setMensajeApi] = useState<string | null>(null);
+  const [raw, setRaw] = useState<InteligenciaIAPayload>(emptyInteligenciaPayload);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const data = useMemo(() => filtrarPorRegion(raw, region), [raw, region]);
 
+  const tieneAnalisis =
+    data.narrativasPorGrupo.length > 0 ||
+    data.senalesEscalada.length > 0 ||
+    data.correlaciones.length > 0 ||
+    data.zonasTension.length > 0;
+
+  const cargarCache = useCallback(async () => {
+    setInitialLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ region });
+      const res = await fetch(`/api/inteligencia?${params}`);
+      const json = (await res.json()) as ApiEnvelope;
+      setRaw(json.data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo cargar el análisis.");
+    } finally {
+      setInitialLoading(false);
+    }
+  }, [region]);
+
+  useEffect(() => {
+    void cargarCache();
+  }, [cargarCache]);
+
   const analizar = useCallback(async () => {
     setLoading(true);
-    setMensajeApi(null);
+    setError(null);
     try {
       const res = await fetch("/api/inteligencia/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ region, periodo: datePreset }),
+        body: JSON.stringify({ region, force: true }),
       });
       const json = (await res.json()) as ApiEnvelope;
       setRaw(json.data);
-      setFuente(json.source ?? "desconocido");
-      if (json.message) setMensajeApi(json.message);
-      if (!json.ok && json.message) setMensajeApi(json.message);
+      if (!json.ok) {
+        setError(json.message ?? "No se pudo completar el análisis.");
+      }
     } catch (e) {
-      setFuente("error");
-      setMensajeApi(e instanceof Error ? e.message : String(e));
+      setError(e instanceof Error ? e.message : "No se pudo completar el análisis.");
     } finally {
       setLoading(false);
     }
-  }, [region, datePreset]);
+  }, [region]);
 
   const rowsGrupo = useMemo(
     () =>
@@ -160,17 +190,13 @@ export function InteligenciaClient() {
               Inteligencia estratégica
             </h1>
           </div>
-          <p className="max-w-2xl text-xs leading-relaxed text-zinc-500">
-            Narrativas activas por grupo (DeepSeek), señales de escalada con
-            confianza, correlación comunicación–hechos, mapa de tensión y
-            tendencias. Los filtros de región y periodo de la barra superior se
-            envían al análisis con IA.
+          <p className="max-w-2xl text-xs text-zinc-500">
+            Síntesis de narrativas, riesgo territorial y tendencias a partir de
+            menciones y alertas monitoreadas.
           </p>
           {fuenteParam ? (
             <p className="text-[11px] text-zinc-400">
-              Contexto desde fuentes:{" "}
-              <span className="font-mono text-zinc-200">{fuenteParam}</span>{" "}
-              (demo; el payload no filtra por cuenta todavía).
+              Fuente: <span className="text-zinc-200">{fuenteParam}</span>
             </p>
           ) : null}
         </div>
@@ -189,38 +215,31 @@ export function InteligenciaClient() {
         </Button>
       </header>
 
-      <div className="flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
-        <Badge variant="outline" className="border-zinc-700 font-mono text-zinc-300">
-          fuente: {fuente}
-        </Badge>
-        <Badge variant="outline" className="border-zinc-700 font-mono text-zinc-300">
-          modelo: {data.modelo}
-        </Badge>
-        <span className="font-mono text-zinc-600">
-          generado {new Date(data.generadoEn).toLocaleString("es-MX")}
-        </span>
-        {mensajeApi ? (
-          <span className="text-amber-500/90">{mensajeApi}</span>
-        ) : null}
-      </div>
+      {error ? (
+        <p className="rounded-lg border border-red-900/50 bg-red-950/30 px-3 py-2 text-xs text-red-300">
+          {error}
+        </p>
+      ) : null}
+
+      {initialLoading ? (
+        <p className="text-xs text-zinc-500">Cargando…</p>
+      ) : !tieneAnalisis && !loading ? (
+        <p className="text-xs text-zinc-500">
+          Pulsa «Analizar con IA» para generar el informe con los filtros actuales.
+        </p>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border-zinc-800 bg-zinc-950/60 lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm text-zinc-100">
               <Radio className="size-4 text-red-400" />
-              Narrativas activas por grupo
+              Narrativas por grupo
             </CardTitle>
-            <CardDescription className="text-xs">
-              Resumen generado por LLM; vectores narrativos y confianza por grupo.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             {data.narrativasPorGrupo.length === 0 ? (
-              <p className="text-xs text-zinc-500">
-                No hay narrativas para la región seleccionada. Cambia el filtro o
-                ejecuta de nuevo el análisis.
-              </p>
+              <p className="text-xs text-zinc-500">Sin resultados para este filtro.</p>
             ) : (
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {data.narrativasPorGrupo.map((n) => (
@@ -233,9 +252,7 @@ export function InteligenciaClient() {
                         <p className="text-xs font-semibold text-zinc-100">
                           {n.grupoNombre}
                         </p>
-                        <p className="text-[10px] text-zinc-500">
-                          {n.estado} · {n.fuenteModelo}
-                        </p>
+                        <p className="text-[10px] text-zinc-500">{n.estado}</p>
                       </div>
                       <Badge
                         variant="outline"
@@ -257,9 +274,6 @@ export function InteligenciaClient() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-2 font-mono text-[10px] text-zinc-600">
-                      actualizado {new Date(n.actualizadoEn).toLocaleString("es-MX")}
-                    </p>
                   </div>
                 ))}
               </div>
@@ -270,15 +284,14 @@ export function InteligenciaClient() {
         <Card className="border-zinc-800 bg-zinc-950/60">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-zinc-100">
-              Señales de escalada
+              Avisos que requieren atención
             </CardTitle>
-            <CardDescription className="text-xs">
-              Indicadores con score de confianza (0–100).
-            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {data.senalesEscalada.length === 0 ? (
-              <p className="text-xs text-zinc-500">Sin señales en este filtro.</p>
+              <p className="text-xs text-zinc-500">
+                No hay avisos destacados en el monitoreo.
+              </p>
             ) : (
               data.senalesEscalada.map((s) => (
                 <div
@@ -286,28 +299,29 @@ export function InteligenciaClient() {
                   className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="flex-1 text-xs font-medium text-zinc-100">
+                    <p className="flex-1 text-sm font-medium leading-snug text-zinc-100">
                       {s.titulo}
                     </p>
                     <Badge
                       variant="outline"
-                      className={cn("text-[10px] uppercase", severidadClass(s.severidad))}
+                      className={cn("shrink-0 text-[10px]", severidadClass(s.severidad))}
                     >
-                      {s.severidad}
+                      {labelPrioridad(s.severidad)}
                     </Badge>
                   </div>
-                  <p className="mt-1 text-[11px] text-zinc-500">{s.descripcion}</p>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                    {s.descripcion}
+                  </p>
                   <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-[10px] text-zinc-500">
-                      <span>Confianza</span>
-                      <span className="font-mono">{s.confianzaPct}%</span>
+                      <span>Claridad del aviso</span>
+                      <span>{formatIntegerEsMx(s.confianzaPct)}%</span>
                     </div>
                     <Progress value={s.confianzaPct} className="h-1.5 bg-zinc-800" />
                   </div>
-                  <p className="mt-2 text-[10px] text-zinc-600">
-                    {s.periodoEtiqueta}
-                    {s.zona ? ` · ${s.zona}` : ""}
-                  </p>
+                  {s.periodoEtiqueta ? (
+                    <p className="mt-2 text-[10px] text-zinc-600">{s.periodoEtiqueta}</p>
+                  ) : null}
                 </div>
               ))
             )}
@@ -318,17 +332,17 @@ export function InteligenciaClient() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm text-zinc-100">
               <TrendingUp className="size-4 text-amber-400" />
-              Correlación comunicación ↔ hechos
+              Patrones que coinciden
             </CardTitle>
-            <CardDescription className="text-xs">
-              Hipótesis temporales con índice de confianza (no es verificación
-              judicial).
-            </CardDescription>
+            <p className="text-[11px] leading-relaxed text-zinc-500">
+              Publicaciones, cuentas o zonas del top de menciones que aparecen
+              relacionadas entre sí o con un hecho reportado.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             {data.correlaciones.length === 0 ? (
               <p className="text-xs text-zinc-500">
-                Sin correlaciones para la región actual.
+                No hay patrones destacados en el monitoreo.
               </p>
             ) : (
               data.correlaciones.map((c) => (
@@ -336,20 +350,38 @@ export function InteligenciaClient() {
                   key={c.id}
                   className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-3"
                 >
-                  <p className="text-xs text-zinc-200">{c.resumen}</p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-zinc-500">
-                    <Badge variant="secondary" className="font-mono">
-                      conf {c.indiceConfianza}%
-                    </Badge>
-                    <span>{c.hechoTipo}</span>
-                    <span>·</span>
-                    <span>{c.zona}</span>
-                    <span>·</span>
-                    <span>
-                      {formatIntegerEsMx(c.publicacionesEnVentana)} pub. /{" "}
-                      {c.ventanaHoras} h
-                    </span>
-                  </div>
+                  <p className="text-sm font-medium leading-snug text-zinc-100">
+                    {c.titulo ?? c.hechoTipo}
+                  </p>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-400">
+                    {c.resumen}
+                  </p>
+                  <ul className="mt-3 space-y-1 text-[11px] text-zinc-500">
+                    <li>
+                      <span className="text-zinc-600">Tipo: </span>
+                      {c.hechoTipo}
+                    </li>
+                    <li>
+                      <span className="text-zinc-600">Dónde: </span>
+                      {c.zona}
+                    </li>
+                    {c.publicacionesEnVentana > 0 ? (
+                      <li>
+                        <span className="text-zinc-600">Publicaciones: </span>
+                        {formatIntegerEsMx(c.publicacionesEnVentana)}
+                      </li>
+                    ) : null}
+                    {c.alcanceEtiqueta ? (
+                      <li>
+                        <span className="text-zinc-600">Alcance: </span>
+                        {c.alcanceEtiqueta}
+                      </li>
+                    ) : null}
+                    <li>
+                      <span className="text-zinc-600">Qué tan claro es: </span>
+                      {formatIntegerEsMx(c.indiceConfianza)}%
+                    </li>
+                  </ul>
                 </div>
               ))
             )}
@@ -360,20 +392,17 @@ export function InteligenciaClient() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm text-zinc-100">
               <MapPin className="size-4 text-sky-400" />
-              Mapa de zonas de tensión
+              Zonas de tensión
             </CardTitle>
-            <CardDescription className="text-xs">
-              Intensidad 0–100 por estado (sintético / IA); tendencia semanal.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             {data.zonasTension.length === 0 ? (
-              <p className="text-xs text-zinc-500">Sin zonas en el filtro actual.</p>
+              <p className="text-xs text-zinc-500">Sin zonas.</p>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 {data.zonasTension.map((z) => (
                   <div
-                    key={z.estado}
+                    key={z.zona}
                     className="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 p-3"
                     style={{
                       boxShadow: `inset 0 -3px 0 rgba(239,68,68,${0.2 + z.intensidad0_100 / 200})`,
@@ -381,13 +410,12 @@ export function InteligenciaClient() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-zinc-100">
-                        {z.estado}
+                        {z.zona}
                       </span>
                       <span className="font-mono text-[10px] text-zinc-500">
                         {tendenciaArrow(z.tendencia)} {z.tendencia}
                       </span>
                     </div>
-                    <p className="mt-1 text-[10px] text-zinc-500">{z.notaCorta}</p>
                     <div className="mt-3 space-y-1">
                       <div className="flex justify-between text-[10px] text-zinc-500">
                         <span>Intensidad</span>
@@ -407,12 +435,7 @@ export function InteligenciaClient() {
 
         <Card className="border-zinc-800 bg-zinc-950/60 lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-zinc-100">
-              Tendencias (7 puntos)
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Por grupo y por zona; eje temporal alineado al periodo de referencia.
-            </CardDescription>
+            <CardTitle className="text-sm text-zinc-100">Tendencias</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="grupo">

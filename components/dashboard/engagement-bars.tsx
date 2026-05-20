@@ -9,15 +9,25 @@ import {
   YAxis,
 } from "recharts";
 
-import { engagementPorCategoria } from "@/lib/mock-data";
+import { ChartEmpty } from "@/components/dashboard/chart-empty";
+import { useDashboardCharts } from "@/lib/hooks/use-dashboard-charts";
 import { formatCompactEsMx } from "@/lib/utils";
 
 const tickMono = { fontFamily: "var(--font-geist-mono)", fontSize: 10, fill: "#71717a" };
 
 export function EngagementBars() {
-  const data = [...engagementPorCategoria].sort(
+  const { data, loading } = useDashboardCharts();
+  const rows = [...(data?.engagementPorCategoria ?? [])].sort(
     (a, b) => b.engagement - a.engagement,
   );
+
+  if (loading) {
+    return <div className="h-[280px] animate-pulse rounded-xl border border-zinc-800 bg-zinc-900/50" />;
+  }
+
+  if (rows.length === 0) {
+    return <ChartEmpty message="Sin engagement registrado por categoría." />;
+  }
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
@@ -26,7 +36,7 @@ export function EngagementBars() {
       </p>
       <ResponsiveContainer width="100%" height={240}>
         <BarChart
-          data={data}
+          data={rows}
           layout="vertical"
           margin={{ top: 4, right: 8, left: 4, bottom: 0 }}
         >
