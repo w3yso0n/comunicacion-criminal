@@ -1,43 +1,52 @@
 import { create } from "zustand";
 
-import { alertas as alertasIniciales } from "@/lib/mock-data";
 import type { Alerta } from "@/lib/types";
 
 type AlertsState = {
   items: Alerta[];
-  markAllRead: () => void;
-  markRead: (id: string) => void;
-  discard: (id: string) => void;
+  loading: boolean;
+  error: string | null;
+  fetched: boolean;
+  fetchAlertas: () => Promise<void>;
 };
 
-function cloneAlertas(): Alerta[] {
-  return alertasIniciales.map((a) => ({ ...a }));
-}
-
-export const useAlertsStore = create<AlertsState>((set) => ({
-  items: cloneAlertas(),
-  markAllRead: () =>
-    set((s) => ({
-      items: s.items.map((a) => ({ ...a, leida: true })),
-    })),
-  markRead: (id) =>
-    set((s) => ({
-      items: s.items.map((a) => (a.id === id ? { ...a, leida: true } : a)),
-    })),
-  discard: (id) =>
-    set((s) => ({
-      items: s.items.map((a) =>
-        a.id === id ? { ...a, descartada: true } : a,
-      ),
-    })),
+export const useAlertsStore = create<AlertsState>((set, get) => ({
+  items: [],
+  loading: false,
+  error: null,
+  fetched: false,
+  fetchAlertas: async () => {
+    if (get().loading) return;
+    set({ loading: true, error: null });
+    try {
+      const res = await fetch("/api/alertas");
+      const json = (await res.json()) as {
+        ok: boolean;
+        data?: Alerta[];
+        error?: string;
+      };
+      if (!res.ok || !json.ok || !json.data) {
+        throw new Error(json.error ?? "No se pudieron cargar las alertas.");
+      }
+      set({ items: json.data, loading: false, fetched: true, error: null });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Error al cargar alertas.";
+      set({ loading: false, error: message, fetched: true });
+    }
+  },
 }));
 
-export function selectUnreadCount(items: Alerta[]): number {
-  return items.filter((a) => !a.leida && !a.descartada).length;
+export function isAlertaNueva(alerta: Alerta): boolean {
+  return alerta.estado?.trim().toLowerCase() === "nueva";
 }
 
-export function selectUnreadCriticas(items: Alerta[]): Alerta[] {
+export function selectNuevasCount(items: Alerta[]): number {
+  return items.filter(isAlertaNueva).length;
+}
+
+export function selectNuevasCriticas(items: Alerta[]): Alerta[] {
   return items.filter(
-    (a) => a.severidad === "critica" && !a.leida && !a.descartada,
+    (a) => a.severidad === "critica" && isAlertaNueva(a),
   );
 }

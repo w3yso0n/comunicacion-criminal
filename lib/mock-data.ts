@@ -616,8 +616,7 @@ export const alertas: Alerta[] = [
     descripcion:
       "Incremento atípico de narrativa de advertencia pública en ventana de 72 h previa a un bloqueo reportado.",
     creadaEn: "2026-05-15T19:10:00.000Z",
-    leida: false,
-    descartada: false,
+    estado: "Nueva",
   },
   {
     id: "al2",
@@ -627,8 +626,7 @@ export const alertas: Alerta[] = [
     descripcion:
       "Entre 21:00 y 23:00 se concentró actividad propagandística en canales regionales del Bajío.",
     creadaEn: "2026-05-15T20:05:00.000Z",
-    leida: false,
-    descartada: false,
+    estado: "Nueva",
   },
   {
     id: "al3",
@@ -638,8 +636,7 @@ export const alertas: Alerta[] = [
     descripcion:
       "Sostenimiento de alto score de apología en múltiples publicaciones en menos de 24 horas.",
     creadaEn: "2026-05-15T16:40:00.000Z",
-    leida: false,
-    descartada: false,
+    estado: "Nueva",
   },
   {
     id: "al4",
@@ -649,8 +646,6 @@ export const alertas: Alerta[] = [
     descripcion:
       "Videos con exhibición implícita de fuerza ganan participación relativa frente a otras categorías.",
     creadaEn: "2026-05-15T14:22:00.000Z",
-    leida: true,
-    descartada: false,
   },
   {
     id: "al5",
@@ -660,8 +655,6 @@ export const alertas: Alerta[] = [
     descripcion:
       "Publicaciones mencionan la misma subregión que un enfrentamiento reportado 36 h después.",
     creadaEn: "2026-05-15T10:15:00.000Z",
-    leida: true,
-    descartada: false,
   },
 ];
 

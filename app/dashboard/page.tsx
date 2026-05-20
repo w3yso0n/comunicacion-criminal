@@ -17,7 +17,7 @@ import { CorrelacionTemporalChart } from "@/components/dashboard/correlacion-tem
 import { EngagementBars } from "@/components/dashboard/engagement-bars";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { RadarNarrativas } from "@/components/dashboard/radar-narrativas";
-import { useAlertsStore } from "@/lib/stores/alerts-store";
+import { isAlertaNueva, useAlertsStore } from "@/lib/stores/alerts-store";
 import { kpiDia as kpi } from "@/lib/mock-data";
 import { formatCompactEsMx } from "@/lib/utils";
 
@@ -39,11 +39,8 @@ const item = {
 };
 
 export default function DashboardResumenPage() {
-  /** Referencia estable al primer aviso crítico no leído (evita nuevo array por render → getServerSnapshot). */
   const alertaCriticaBanner = useAlertsStore((s) =>
-    s.items.find(
-      (a) => a.severidad === "critica" && !a.leida && !a.descartada,
-    ),
+    s.items.find((a) => a.severidad === "critica" && isAlertaNueva(a)),
   );
 
   return (

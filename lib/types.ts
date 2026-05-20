@@ -32,7 +32,9 @@ export type TipoAlerta =
   | "correlacion"
   | "pico_actividad"
   | "autor"
-  | "narrativa";
+  | "narrativa"
+  | "correlacion_accion_hecho"
+  | "coincidencia_territorial";
 
 export type EstadoMexico =
   | "Jalisco"
@@ -111,8 +113,47 @@ export interface Alerta {
   titulo: string;
   descripcion: string;
   creadaEn: string;
-  leida: boolean;
-  descartada: boolean;
+  grupoCriminal?: string;
+  municipio?: string;
+  plataforma?: string;
+  clusterId?: string;
+  nMenciones?: number;
+  scoreConfianzaPct?: number;
+  estado?: string;
+}
+
+export interface Mencion {
+  id: string;
+  url: string;
+  publicadoEn: string;
+  plataforma: Plataforma;
+  handle: string;
+  autorNombre?: string;
+  autorVerificado?: boolean;
+  autorSeguidores?: number;
+  contenido: string;
+  descripcionCorta?: string;
+  municipio?: string;
+  ubicacionEspecifica?: string;
+  zona?: string;
+  engagement: {
+    reacciones: number;
+    comentarios: number;
+    compartidos: number;
+    total: number;
+  };
+  reach?: number;
+  tipoPrincipal?: string;
+  subTipo?: string;
+  tipoDelito?: string;
+  scoreSeveridad?: number;
+  nivelRiesgo?: NivelRiesgo;
+  grupoCriminal?: string;
+  senalEscalada?: string;
+  analisisIa?: string;
+  clusterId?: string;
+  clusterRole?: string;
+  capturaUrl?: string;
 }
 
 export interface KpiDia {

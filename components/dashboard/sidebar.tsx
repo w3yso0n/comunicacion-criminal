@@ -17,7 +17,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { selectUnreadCount, useAlertsStore } from "@/lib/stores/alerts-store";
+import { selectNuevasCount, useAlertsStore } from "@/lib/stores/alerts-store";
 import type { LucideIcon } from "lucide-react";
 
 type NavItem = {
@@ -43,7 +43,7 @@ const nav: NavItem[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const unread = useAlertsStore((s) => selectUnreadCount(s.items));
+  const nuevas = useAlertsStore((s) => selectNuevasCount(s.items));
 
   return (
     <motion.aside
@@ -108,7 +108,7 @@ export function Sidebar() {
                 {!collapsed ? (
                   <span className="truncate">{item.label}</span>
                 ) : null}
-                {item.badge === true && unread > 0 ? (
+                {item.badge === true && nuevas > 0 ? (
                   <Badge
                     variant="destructive"
                     className={cn(
@@ -116,7 +116,7 @@ export function Sidebar() {
                       collapsed && "absolute -right-0.5 -top-0.5",
                     )}
                   >
-                    {unread > 9 ? "9+" : unread}
+                    {nuevas > 9 ? "9+" : nuevas}
                   </Badge>
                 ) : null}
               </Link>

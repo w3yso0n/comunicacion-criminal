@@ -128,3 +128,28 @@
     @apply font-sans;
   }
 }
+
+@layer utilities {
+  .scrollbar-dashboard {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.42 0 0 / 0.9) transparent;
+  }
+
+  .scrollbar-dashboard::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  .scrollbar-dashboard::-webkit-scrollbar-track {
+    margin-block: 4px;
+    background: transparent;
+  }
+
+  .scrollbar-dashboard::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: oklch(0.38 0 0 / 0.85);
+  }
+
+  .scrollbar-dashboard::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.48 0 0);
+  }
+}
