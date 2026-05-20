@@ -1,10 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import {
   Activity,
   GitMerge,
-  Radio,
+  MapPin,
   Rss,
   ShieldAlert,
   TrendingUp,
@@ -18,30 +19,40 @@ import { EngagementBars } from "@/components/dashboard/engagement-bars";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { RadarNarrativas } from "@/components/dashboard/radar-narrativas";
 import { isAlertaNueva, useAlertsStore } from "@/lib/stores/alerts-store";
-import { kpiDia as kpi } from "@/lib/mock-data";
+import type { DashboardKpis } from "@/lib/db/dashboard-kpis";
 import { formatCompactEsMx } from "@/lib/utils";
 
 const container = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 
 const item = {
   hidden: { opacity: 0, y: 12 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.35, ease: "easeOut" as const },
-  },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const } },
 };
+
+function KpiSkeleton() {
+  return <div className="h-[88px] animate-pulse rounded-xl border border-zinc-800 bg-zinc-900/50" />;
+}
 
 export default function DashboardResumenPage() {
   const alertaCriticaBanner = useAlertsStore((s) =>
     s.items.find((a) => a.severidad === "critica" && isAlertaNueva(a)),
   );
+
+  const [kpis, setKpis] = useState<DashboardKpis | null>(null);
+  const [kpisLoading, setKpisLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/dashboard/kpis")
+      .then((r) => r.json())
+      .then((j: { ok: boolean; data?: DashboardKpis }) => {
+        if (j.ok && j.data) setKpis(j.data);
+      })
+      .catch(() => null)
+      .finally(() => setKpisLoading(false));
+  }, []);
 
   return (
     <motion.div
@@ -55,8 +66,7 @@ export default function DashboardResumenPage() {
           Resumen ejecutivo
         </h1>
         <p className="max-w-3xl text-xs text-zinc-500">
-          Vista general de narrativas de apología y propaganda en redes. Los datos son
-          demostrativos y no constituyen evidencia pericial.
+          Vista general de menciones delictivas y alertas detectadas. KPIs calculados en tiempo real desde la base de datos.
         </p>
       </motion.header>
 
@@ -66,52 +76,73 @@ export default function DashboardResumenPage() {
 
       <motion.section
         variants={item}
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
-        <KpiCard
-          label="Detecciones hoy"
-          value={kpi.publicacionesDetectadas}
-          subtext="vs periodo anterior"
-          trend="up"
-          trendValue={kpi.publicacionesTrendPct}
-          trendSentiment="risk"
-          icon={Activity}
-        />
-        <KpiCard
-          label="Riesgo extremo"
-          value={kpi.riesgoExtremo}
-          subtext="Requiere revisión prioritaria"
-          icon={ShieldAlert}
-          variant="danger"
-        />
-        <KpiCard
-          label="Índice apología"
-          value={kpi.indiceApologiaPromedio}
-          valueSuffix="/100"
-          subtext="Tendencia crítica"
-          icon={Radio}
-          variant="warning"
-        />
-        <KpiCard
-          label="Engagement"
-          value={kpi.engagementTotal}
-          subtext="Impacto estimado agregado"
-          icon={TrendingUp}
-          formatValue={formatCompactEsMx}
-        />
-        <KpiCard
-          label="Cruce con hechos públicos (demo)"
-          value={kpi.hechosCorrelacionados}
-          subtext={`Ejemplos · ${kpi.hechosCorrelacionConfianzaPct}% confianza simulada`}
-          icon={GitMerge}
-          variant="warning"
-        />
-        <KpiCard
-          label="Fuentes clave"
-          value={kpi.autoresClave}
-          subtext="Cuentas monitoreadas"
-          icon={Rss}
-        />
+        {kpisLoading ? (
+          Array.from({ length: 8 }).map((_, i) => <KpiSkeleton key={i} />)
+        ) : (
+          <>
+            <KpiCard
+              label="Total menciones"
+              value={kpis?.totalMenciones ?? 0}
+              subtext="Registros en base de datos"
+              icon={Activity}
+            />
+            <KpiCard
+              label="Alto riesgo"
+              value={kpis?.mencionesAltoRiesgo ?? 0}
+              subtext="Nivel alto o crítico"
+              icon={ShieldAlert}
+              variant="danger"
+            />
+            <KpiCard
+              label="Score severidad prom."
+              value={kpis?.scorePromedio ?? 0}
+              valueSuffix="/100"
+              subtext="Promedio de todas las menciones"
+              icon={TrendingUp}
+              variant={
+                (kpis?.scorePromedio ?? 0) >= 70
+                  ? "danger"
+                  : (kpis?.scorePromedio ?? 0) >= 50
+                    ? "warning"
+                    : undefined
+              }
+            />
+            <KpiCard
+              label="Engagement total"
+              value={kpis?.engagementTotal ?? 0}
+              subtext="Suma de interacciones"
+              icon={Activity}
+              formatValue={formatCompactEsMx}
+            />
+            <KpiCard
+              label="Total alertas"
+              value={kpis?.totalAlertas ?? 0}
+              subtext="Alertas generadas"
+              icon={GitMerge}
+            />
+            <KpiCard
+              label="Alertas críticas"
+              value={kpis?.alertasCriticas ?? 0}
+              subtext="Requieren atención inmediata"
+              icon={ShieldAlert}
+              variant={kpis && kpis.alertasCriticas > 0 ? "danger" : undefined}
+            />
+            <KpiCard
+              label="Fuentes únicas"
+              value={kpis?.fuentesUnicas ?? 0}
+              subtext="Cuentas monitoreadas"
+              icon={Rss}
+            />
+            <KpiCard
+              label="Municipios afectados"
+              value={kpis?.municipiosAfectados ?? 0}
+              subtext="Con al menos una mención"
+              icon={MapPin}
+            />
+          </>
+        )}
       </motion.section>
 
       <motion.section
@@ -123,10 +154,8 @@ export default function DashboardResumenPage() {
             <CorrelacionTemporalChart />
           </ChartErrorBoundary>
           <p className="text-[11px] leading-relaxed text-zinc-500">
-            <strong className="font-medium text-zinc-400">Lectura rápida:</strong>{" "}
-            barras = volumen de publicaciones (parte roja = alto riesgo); línea punteada
-            = índice de apología; puntos rojos = horas con un hecho público de ejemplo en
-            el mock. No implica que un hecho haya sido causado por un post.
+            <strong className="font-medium text-zinc-400">Visualización demo.</strong>{" "}
+            Este gráfico mostrará la distribución temporal de menciones cuando se implemente la agregación por hora.
           </p>
         </div>
         <div className="min-w-0 xl:col-span-4">
