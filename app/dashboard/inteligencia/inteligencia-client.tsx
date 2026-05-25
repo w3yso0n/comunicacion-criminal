@@ -35,6 +35,7 @@ import { emptyInteligenciaPayload } from "@/lib/inteligencia-empty";
 import type { InteligenciaIAPayload } from "@/lib/inteligencia-schema";
 import { useDashboardFiltersStore } from "@/lib/stores/dashboard-filters-store";
 import { labelPrioridad } from "@/lib/db/inteligencia-senales";
+import { regionCoincideFiltro } from "@/lib/db/inteligencia-zonas";
 import { cn, formatIntegerEsMx } from "@/lib/utils";
 
 const LINE_COLORS = ["#f87171", "#fbbf24", "#60a5fa", "#a78bfa", "#34d399"];
@@ -79,10 +80,8 @@ function filtrarPorRegion(
     correlaciones: data.correlaciones.filter(
       (c) => c.zona.includes(region) || c.zona.startsWith(region),
     ),
-    zonasTension: data.zonasTension.filter(
-      (z) =>
-        z.zona === region ||
-        z.zona.toLowerCase().includes(region.toLowerCase()),
+    zonasTension: data.zonasTension.filter((z) =>
+      regionCoincideFiltro(z, region),
     ),
     tendenciasEjeTemporal: data.tendenciasEjeTemporal,
     tendenciasPorGrupo: data.tendenciasPorGrupo,
@@ -192,7 +191,7 @@ export function InteligenciaClient() {
           </div>
           <p className="max-w-2xl text-xs text-zinc-500">
             Síntesis de narrativas, riesgo territorial y tendencias a partir de
-            menciones y alertas monitoreadas.
+            menciones y alertas monitoreadas en el Estado de México.
           </p>
           {fuenteParam ? (
             <p className="text-[11px] text-zinc-400">
@@ -335,8 +334,8 @@ export function InteligenciaClient() {
               Patrones que coinciden
             </CardTitle>
             <p className="text-[11px] leading-relaxed text-zinc-500">
-              Publicaciones, cuentas o zonas del top de menciones que aparecen
-              relacionadas entre sí o con un hecho reportado.
+              Publicaciones, cuentas o municipios del top de menciones que
+              aparecen relacionadas entre sí o con un hecho reportado.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -392,14 +391,19 @@ export function InteligenciaClient() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm text-zinc-100">
               <MapPin className="size-4 text-sky-400" />
-              Zonas de tensión
+              Regiones Edomex
             </CardTitle>
+            <p className="text-[11px] text-zinc-500">
+              Intensidad por región oficial (19 regiones en 7 zonas).
+            </p>
           </CardHeader>
           <CardContent>
             {data.zonasTension.length === 0 ? (
-              <p className="text-xs text-zinc-500">Sin zonas.</p>
+              <p className="text-xs text-zinc-500">
+                Sin regiones con municipios Edomex en el monitoreo.
+              </p>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {data.zonasTension.map((z) => (
                   <div
                     key={z.zona}
@@ -408,10 +412,17 @@ export function InteligenciaClient() {
                       boxShadow: `inset 0 -3px 0 rgba(239,68,68,${0.2 + z.intensidad0_100 / 200})`,
                     }}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-zinc-100">
-                        {z.zona}
-                      </span>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="block text-xs font-semibold leading-snug text-zinc-100">
+                          {z.zona}
+                        </span>
+                        {z.zonaMacro ? (
+                          <span className="mt-0.5 block text-[10px] text-zinc-500">
+                            {z.zonaMacro}
+                          </span>
+                        ) : null}
+                      </div>
                       <span className="font-mono text-[10px] text-zinc-500">
                         {tendenciaArrow(z.tendencia)} {z.tendencia}
                       </span>
@@ -426,6 +437,11 @@ export function InteligenciaClient() {
                         className="h-2 bg-zinc-800"
                       />
                     </div>
+                    {z.notaCorta ? (
+                      <p className="mt-2 text-[10px] leading-snug text-zinc-600">
+                        {z.notaCorta}
+                      </p>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -444,7 +460,7 @@ export function InteligenciaClient() {
                   Por grupo
                 </TabsTrigger>
                 <TabsTrigger value="zona" className="text-xs">
-                  Por zona
+                  Por región
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="grupo" className="mt-4">

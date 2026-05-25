@@ -42,8 +42,10 @@ const correlacion = z.object({
 });
 
 const zonaTension = z.object({
-  /** Territorio real en datos: estado, municipio o zona (ej. Estado de México, Toluca). */
+  /** Región oficial Edomex (ej. Región 4: Nezahualcóyotl). */
   zona: z.string(),
+  /** Zona macro (ej. Zona I Oriente). */
+  zonaMacro: z.string().optional(),
   intensidad0_100: z.number().min(0).max(100),
   tendencia,
   notaCorta: z.string(),

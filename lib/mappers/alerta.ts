@@ -1,4 +1,5 @@
-import type { Alerta, SeveridadAlerta, TipoAlerta } from "@/lib/types";
+import type { Alerta, TipoAlerta } from "@/lib/types";
+import { normalizarSeveridadAlerta } from "@/lib/nivel-riesgo";
 
 export type AlertaRow = {
   alerta_id: number;
@@ -31,17 +32,8 @@ function mapTipo(raw: string): TipoAlerta {
   return "correlacion";
 }
 
-function mapSeveridad(nivel: string): SeveridadAlerta {
-  const n = nivel
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-  if (n === "critica") return "critica";
-  if (n === "alta") return "alta";
-  if (n === "media") return "media";
-  if (n === "baja") return "baja";
-  return "media";
+function mapSeveridad(nivel: string) {
+  return normalizarSeveridadAlerta(nivel) ?? "media";
 }
 
 function toIsoDate(value: Date | string): string {

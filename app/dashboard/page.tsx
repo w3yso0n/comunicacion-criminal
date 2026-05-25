@@ -17,8 +17,9 @@ import { ChartErrorBoundary } from "@/components/dashboard/chart-error-boundary"
 import { CorrelacionTemporalChart } from "@/components/dashboard/correlacion-temporal-chart";
 import { EngagementBars } from "@/components/dashboard/engagement-bars";
 import { KpiCard } from "@/components/dashboard/kpi-card";
-import { RadarNarrativas } from "@/components/dashboard/radar-narrativas";
+import { MapaPreview } from "@/components/dashboard/mapa-preview";
 import { isAlertaNueva, useAlertsStore } from "@/lib/stores/alerts-store";
+import { esAlertaAltoRiesgo } from "@/lib/nivel-riesgo";
 import type { DashboardKpis } from "@/lib/db/dashboard-kpis";
 import { formatCompactEsMx } from "@/lib/utils";
 
@@ -37,8 +38,8 @@ function KpiSkeleton() {
 }
 
 export default function DashboardResumenPage() {
-  const alertaCriticaBanner = useAlertsStore((s) =>
-    s.items.find((a) => a.severidad === "critica" && isAlertaNueva(a)),
+  const alertaAltoRiesgoBanner = useAlertsStore((s) =>
+    s.items.find((a) => esAlertaAltoRiesgo(a.severidad) && isAlertaNueva(a)),
   );
 
   const [kpis, setKpis] = useState<DashboardKpis | null>(null);
@@ -70,8 +71,8 @@ export default function DashboardResumenPage() {
         </p>
       </motion.header>
 
-      {alertaCriticaBanner ? (
-        <AlertBanner alertas={[alertaCriticaBanner]} />
+      {alertaAltoRiesgoBanner ? (
+        <AlertBanner alertas={[alertaAltoRiesgoBanner]} />
       ) : null}
 
       <motion.section
@@ -91,7 +92,7 @@ export default function DashboardResumenPage() {
             <KpiCard
               label="Alto riesgo"
               value={kpis?.mencionesAltoRiesgo ?? 0}
-              subtext="Nivel alto o crítico"
+              subtext="Menciones clasificadas como alto riesgo"
               icon={ShieldAlert}
               variant="danger"
             />
@@ -123,11 +124,11 @@ export default function DashboardResumenPage() {
               icon={GitMerge}
             />
             <KpiCard
-              label="Alertas críticas"
-              value={kpis?.alertasCriticas ?? 0}
+              label="Alertas alto riesgo"
+              value={kpis?.alertasAltoRiesgo ?? 0}
               subtext="Requieren atención inmediata"
               icon={ShieldAlert}
-              variant={kpis && kpis.alertasCriticas > 0 ? "danger" : undefined}
+              variant={kpis && kpis.alertasAltoRiesgo > 0 ? "danger" : undefined}
             />
             <KpiCard
               label="Fuentes únicas"
@@ -150,7 +151,7 @@ export default function DashboardResumenPage() {
         className="grid grid-cols-1 gap-4 xl:grid-cols-12"
       >
         <div className="min-w-0 xl:col-span-8">
-          <ChartErrorBoundary title="Menciones por hora">
+          <ChartErrorBoundary title="Menciones por día">
             <CorrelacionTemporalChart />
           </ChartErrorBoundary>
         </div>
@@ -161,13 +162,13 @@ export default function DashboardResumenPage() {
         </div>
       </motion.section>
 
-      <motion.section
-        variants={item}
-        className="grid grid-cols-1 gap-4 lg:grid-cols-2"
-      >
-        <ChartErrorBoundary title="Narrativas">
-          <RadarNarrativas />
+      <motion.section variants={item}>
+        <ChartErrorBoundary title="Mapa de calor">
+          <MapaPreview />
         </ChartErrorBoundary>
+      </motion.section>
+
+      <motion.section variants={item}>
         <ChartErrorBoundary title="Engagement por categoría">
           <EngagementBars />
         </ChartErrorBoundary>

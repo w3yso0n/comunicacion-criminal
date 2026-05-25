@@ -49,7 +49,7 @@ export function labelCategoria(c: CategoriaContenido): string {
 
 export function labelRiesgo(r: NivelRiesgo): string {
   const map: Record<NivelRiesgo, string> = {
-    critico: "Crítico",
+    critico: "Alto",
     alto: "Alto",
     medio: "Medio",
     bajo: "Bajo",

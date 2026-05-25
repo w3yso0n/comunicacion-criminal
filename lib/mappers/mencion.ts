@@ -1,4 +1,5 @@
-import type { Mencion, NivelRiesgo, Plataforma } from "@/lib/types";
+import type { Mencion, Plataforma } from "@/lib/types";
+import { normalizarNivelRiesgo } from "@/lib/nivel-riesgo";
 
 export type MencionRow = {
   mencion_id: number;
@@ -48,18 +49,8 @@ function mapPlataforma(raw: string | null): Plataforma {
   return "twitter";
 }
 
-function mapNivelRiesgo(raw: string | null): NivelRiesgo | undefined {
-  if (!raw) return undefined;
-  const n = raw
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-  if (n === "critico") return "critico";
-  if (n === "alto") return "alto";
-  if (n === "medio") return "medio";
-  if (n === "bajo") return "bajo";
-  return "neutral";
+function mapNivelRiesgo(raw: string | null) {
+  return normalizarNivelRiesgo(raw);
 }
 
 function mapVerificado(raw: string | boolean | null): boolean | undefined {

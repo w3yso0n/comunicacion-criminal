@@ -136,9 +136,9 @@ export function buildPayloadDesdeContexto(
       grupo: g.grupo,
       total: g.total,
     })),
-    porZona: ctx.agregados.porZona,
+    porMunicipio: ctx.agregados.porMunicipio,
     serieGrupoPorDia: ctx.agregados.serieGrupoPorDia,
-    serieZonaPorDia: ctx.agregados.serieZonaPorDia,
+    serieMunicipioPorDia: ctx.agregados.serieMunicipioPorDia,
   });
 
   return {

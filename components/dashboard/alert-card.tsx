@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import type { Alerta, TipoAlerta } from "@/lib/types";
 import { isAlertaNueva } from "@/lib/stores/alerts-store";
+import { humanizarAutorReincidente } from "@/lib/texto-lectura";
 import { cn, formatIntegerEsMx } from "@/lib/utils";
 
 function IconoTipo({ tipo }: { tipo: TipoAlerta }) {
@@ -73,6 +74,14 @@ function labelSeveridad(s: Alerta["severidad"]): string {
 
 export function AlertCard({ alerta }: { alerta: Alerta }) {
   const esNueva = isAlertaNueva(alerta);
+  const humanizado = humanizarAutorReincidente({
+    titulo: alerta.titulo,
+    descripcion: alerta.descripcion,
+    plataforma: alerta.plataforma,
+    nMenciones: alerta.nMenciones,
+  });
+  const titulo = humanizado?.titulo ?? alerta.titulo;
+  const descripcion = humanizado?.descripcion ?? alerta.descripcion;
 
   return (
     <article
@@ -86,14 +95,14 @@ export function AlertCard({ alerta }: { alerta: Alerta }) {
         <IconoTipo tipo={alerta.tipo} />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-semibold text-zinc-100">
-              {alerta.titulo}
-            </h3>
+            <h3 className="text-sm font-semibold text-zinc-100">{titulo}</h3>
             {esNueva ? (
               <span className="mt-1 size-2 shrink-0 rounded-full bg-sky-500" />
             ) : null}
           </div>
-          <p className="mt-1 text-xs text-zinc-400">{alerta.descripcion}</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+            {descripcion}
+          </p>
 
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Badge

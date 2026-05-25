@@ -2,6 +2,7 @@ import type { InteligenciaContextSnapshot } from "@/lib/db/inteligencia-context"
 import type { CorrelacionComunicacionHecho } from "@/lib/inteligencia-schema";
 import {
   formatearHandle,
+  humanizarAutorReincidente,
   labelPlataforma,
   limpiarTextoCorrelacion,
 } from "@/lib/texto-lectura";
@@ -58,12 +59,27 @@ function extraerHandle(texto: string): string | null {
 }
 
 function tituloDesdeAlerta(a: AlertaCtx): string {
+  const humanizado = humanizarAutorReincidente({
+    titulo: a.titulo,
+    descripcion: a.descripcion,
+    plataforma: a.plataforma,
+    nMenciones: a.nMenciones,
+  });
+  if (humanizado) return humanizado.titulo;
   const t = limpiarTextoCorrelacion(a.titulo);
   if (t.length > 8) return t;
   return labelTipoHallazgo(a.tipo);
 }
 
 function resumenAutorReincidente(a: AlertaCtx): string {
+  const humanizado = humanizarAutorReincidente({
+    titulo: a.titulo,
+    descripcion: a.descripcion,
+    plataforma: a.plataforma,
+    nMenciones: a.nMenciones,
+  });
+  if (humanizado) return humanizado.descripcion;
+
   const handle = extraerHandle(`${a.titulo} ${a.descripcion}`) ?? "Una cuenta";
   const red = labelPlataforma(a.plataforma);
   const base = limpiarTextoCorrelacion(a.descripcion);

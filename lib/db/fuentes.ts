@@ -1,3 +1,5 @@
+import { SQL_MENCION_ALTO_RIESGO } from "@/lib/nivel-riesgo";
+
 import { getPool } from "./mssql";
 
 export interface FuenteRow {
@@ -105,7 +107,7 @@ export async function getFuentesStats(): Promise<{
       COUNT(DISTINCT handle)                                           AS total,
       COUNT(DISTINCT CASE WHEN CAST(autor_verificado AS TINYINT) = 1 THEN handle END) AS verificadas,
       COUNT(DISTINCT CASE WHEN CAST(es_nueva_cuenta AS TINYINT) = 1 THEN handle END)  AS nuevas,
-      COUNT(DISTINCT CASE WHEN LOWER(nivel_riesgo) IN ('alto','critico') THEN handle END) AS alto_riesgo
+      COUNT(DISTINCT CASE WHEN ${SQL_MENCION_ALTO_RIESGO} THEN handle END) AS alto_riesgo
     FROM [Centinela].[Menciones]
     WHERE handle IS NOT NULL
   `);

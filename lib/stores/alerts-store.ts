@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type { Alerta } from "@/lib/types";
+import { esAlertaAltoRiesgo } from "@/lib/nivel-riesgo";
 
 type AlertsState = {
   items: Alerta[];
@@ -45,8 +46,13 @@ export function selectNuevasCount(items: Alerta[]): number {
   return items.filter(isAlertaNueva).length;
 }
 
-export function selectNuevasCriticas(items: Alerta[]): Alerta[] {
+export function selectNuevasAltoRiesgo(items: Alerta[]): Alerta[] {
   return items.filter(
-    (a) => a.severidad === "critica" && isAlertaNueva(a),
+    (a) => esAlertaAltoRiesgo(a.severidad) && isAlertaNueva(a),
   );
+}
+
+/** @deprecated Usar selectNuevasAltoRiesgo */
+export function selectNuevasCriticas(items: Alerta[]): Alerta[] {
+  return selectNuevasAltoRiesgo(items);
 }

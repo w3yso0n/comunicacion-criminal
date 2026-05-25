@@ -1,22 +1,22 @@
+import {
+  SQL_MENCION_ALTO_RIESGO,
+  SQL_MENCION_MEDIO_RIESGO,
+} from "@/lib/nivel-riesgo";
 import type {
   CategoriaDistribucion,
   EngagementPorCategoria,
-  NarrativaRadarDato,
-  PuntoCorrelacionHora,
+  PuntoCorrelacionTemporal,
 } from "@/lib/types";
 
 import { getPool } from "./mssql";
 
+const DIAS_VENTANA = 90;
+
 export interface DashboardChartsData {
-  correlacionPorHora: PuntoCorrelacionHora[];
-  horasPicoDetectadas: number[];
+  correlacionPorDia: PuntoCorrelacionTemporal[];
+  diasPicoDetectados: number[];
   categoriaDistribucion: CategoriaDistribucion[];
   engagementPorCategoria: EngagementPorCategoria[];
-  narrativasRadar: NarrativaRadarDato[];
-}
-
-function horaLabel(h: number): string {
-  return `${String(h).padStart(2, "0")}:00`;
 }
 
 function labelFromKey(key: string): string {
@@ -25,36 +25,69 @@ function labelFromKey(key: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function emptyHourSeries(): PuntoCorrelacionHora[] {
-  return Array.from({ length: 24 }, (_, h) => ({
-    hora: horaLabel(h),
-    publicaciones: 0,
-    publicacionesCriticas: 0,
-    hechos: 0,
-    indiceApologiaPromedio: 0,
-  }));
+function startOfDayUtc(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+function toIsoDateKey(value: Date | string): string {
+  if (value instanceof Date) {
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(value.getUTCDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+  return String(value).slice(0, 10);
+}
+
+function formatDiaEs(d: Date): string {
+  return d.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
+function emptyDaySeries(days: number): PuntoCorrelacionTemporal[] {
+  const today = startOfDayUtc(new Date());
+  return Array.from({ length: days }, (_, i) => {
+    const d = new Date(today);
+    d.setUTCDate(d.getUTCDate() - (days - 1 - i));
+    const fechaIso = toIsoDateKey(d);
+    return {
+      fecha: formatDiaEs(d),
+      fechaIso,
+      publicaciones: 0,
+      publicacionesMedioRiesgo: 0,
+      publicacionesAltoRiesgo: 0,
+      hechos: 0,
+      scoreSeveridadPromedio: null,
+    };
+  });
 }
 
 export async function getDashboardCharts(): Promise<DashboardChartsData> {
   const pool = await getPool();
 
-  const [porHora, porTipo, engagementPorTipo, porSubTipo, engagementTotalRow] =
+  const [porDia, porTipo, engagementPorTipo, engagementTotalRow] =
     await Promise.all([
       pool.request().query<{
-        hora: number;
+        dia: Date | string;
         publicaciones: number;
-        publicaciones_criticas: number;
-        indice_promedio: number;
+        publicaciones_medio_riesgo: number;
+        publicaciones_alto_riesgo: number;
+        score_promedio: number;
       }>(`
         SELECT
-          DATEPART(HOUR, published_at) AS hora,
+          CAST(published_at AS DATE) AS dia,
           COUNT(*) AS publicaciones,
-          SUM(CASE WHEN LOWER(nivel_riesgo) IN ('alto', 'critico') THEN 1 ELSE 0 END) AS publicaciones_criticas,
-          AVG(CAST(ISNULL(score_severidad, 0) AS FLOAT)) AS indice_promedio
+          SUM(CASE WHEN ${SQL_MENCION_MEDIO_RIESGO} THEN 1 ELSE 0 END) AS publicaciones_medio_riesgo,
+          SUM(CASE WHEN ${SQL_MENCION_ALTO_RIESGO} THEN 1 ELSE 0 END) AS publicaciones_alto_riesgo,
+          AVG(CAST(ISNULL(score_severidad, 0) AS FLOAT)) AS score_promedio
         FROM [Centinela].[Menciones]
         WHERE published_at IS NOT NULL
-        GROUP BY DATEPART(HOUR, published_at)
-        ORDER BY hora
+          AND published_at >= DATEADD(DAY, -${DIAS_VENTANA}, CAST(SYSUTCDATETIME() AS DATE))
+        GROUP BY CAST(published_at AS DATE)
+        ORDER BY dia
       `),
       pool.request().query<{
         categoria: string;
@@ -77,76 +110,42 @@ export async function getDashboardCharts(): Promise<DashboardChartsData> {
         FROM [Centinela].[Menciones]
         GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(tipo_principal)), ''), 'sin_clasificar')
       `),
-      pool.request().query<{
-        id: string;
-        total: number;
-        score_promedio: number;
-        variacion_pct: number | null;
-      }>(`
-        WITH actual AS (
-          SELECT
-            ISNULL(NULLIF(LTRIM(RTRIM(sub_tipo)), ''), 'sin_clasificar') AS id,
-            COUNT(*) AS total,
-            AVG(CAST(ISNULL(score_severidad, 0) AS FLOAT)) AS score_promedio
-          FROM [Centinela].[Menciones]
-          WHERE published_at >= DATEADD(DAY, -7, SYSUTCDATETIME())
-          GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(sub_tipo)), ''), 'sin_clasificar')
-        ),
-        anterior AS (
-          SELECT
-            ISNULL(NULLIF(LTRIM(RTRIM(sub_tipo)), ''), 'sin_clasificar') AS id,
-            COUNT(*) AS total
-          FROM [Centinela].[Menciones]
-          WHERE published_at >= DATEADD(DAY, -14, SYSUTCDATETIME())
-            AND published_at < DATEADD(DAY, -7, SYSUTCDATETIME())
-          GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(sub_tipo)), ''), 'sin_clasificar')
-        )
-        SELECT
-          a.id,
-          a.total,
-          a.score_promedio,
-          CASE
-            WHEN ISNULL(p.total, 0) = 0 THEN NULL
-            ELSE ROUND((CAST(a.total - ISNULL(p.total, 0) AS FLOAT) / p.total) * 100, 0)
-          END AS variacion_pct
-        FROM actual a
-        LEFT JOIN anterior p ON p.id = a.id
-        ORDER BY a.total DESC
-      `),
       pool.request().query<{ engagement_total: number }>(`
         SELECT SUM(ISNULL(engagement_total, 0)) AS engagement_total
         FROM [Centinela].[Menciones]
       `),
     ]);
 
-  const horaMap = new Map(
-    porHora.recordset.map((r) => [
-      r.hora,
+  const diaMap = new Map(
+    porDia.recordset.map((r) => [
+      toIsoDateKey(r.dia),
       {
         publicaciones: r.publicaciones,
-        publicacionesCriticas: r.publicaciones_criticas,
-        indiceApologiaPromedio: Math.round(r.indice_promedio ?? 0),
+        publicacionesMedioRiesgo: r.publicaciones_medio_riesgo,
+        publicacionesAltoRiesgo: r.publicaciones_alto_riesgo,
+        scoreSeveridadPromedio: Math.round(r.score_promedio ?? 0),
       },
     ]),
   );
 
-  const correlacionPorHora = emptyHourSeries().map((punto, h) => {
-    const row = horaMap.get(h);
+  const correlacionPorDia = emptyDaySeries(DIAS_VENTANA).map((punto) => {
+    const row = diaMap.get(punto.fechaIso);
     if (!row) return punto;
     return {
       ...punto,
       publicaciones: row.publicaciones,
-      publicacionesCriticas: row.publicacionesCriticas,
-      indiceApologiaPromedio: row.indiceApologiaPromedio,
+      publicacionesMedioRiesgo: row.publicacionesMedioRiesgo,
+      publicacionesAltoRiesgo: row.publicacionesAltoRiesgo,
+      scoreSeveridadPromedio: row.scoreSeveridadPromedio,
     };
   });
 
-  const horasPicoDetectadas = [...correlacionPorHora]
-    .map((p, h) => ({ h, v: p.publicaciones }))
+  const diasPicoDetectados = [...correlacionPorDia]
+    .map((p, i) => ({ i, v: p.publicaciones }))
     .sort((a, b) => b.v - a.v)
     .filter((x) => x.v > 0)
     .slice(0, 3)
-    .map((x) => x.h);
+    .map((x) => x.i);
 
   const tipoRows = porTipo.recordset;
   const tipoTotal = tipoRows.reduce((s, r) => s + r.total, 0);
@@ -176,25 +175,10 @@ export async function getDashboardCharts(): Promise<DashboardChartsData> {
     };
   });
 
-  const subTipoRows = porSubTipo.recordset;
-  const maxSubTipo = subTipoRows.reduce((m, r) => Math.max(m, r.total), 0);
-
-  const narrativasRadar: NarrativaRadarDato[] = subTipoRows.slice(0, 8).map((r) => ({
-    id: r.id as NarrativaRadarDato["id"],
-    label: labelFromKey(r.id),
-    valor:
-      maxSubTipo > 0
-        ? Math.round((r.total / maxSubTipo) * 100)
-        : Math.round(r.score_promedio ?? 0),
-    variacionSemanalPct: r.variacion_pct ?? 0,
-    descripcion: `Promedio de severidad: ${Math.round(r.score_promedio ?? 0)}/100`,
-  }));
-
   return {
-    correlacionPorHora,
-    horasPicoDetectadas,
+    correlacionPorDia,
+    diasPicoDetectados,
     categoriaDistribucion,
     engagementPorCategoria,
-    narrativasRadar,
   };
 }

@@ -169,14 +169,19 @@ export interface KpiDia {
   autoresClave: number;
 }
 
-/** Punto horario para el chart principal (último día de referencia o agregado). */
-export interface PuntoCorrelacionHora {
-  hora: string;
+/** Punto diario para el chart de correlación temporal (ventana móvil). */
+export interface PuntoCorrelacionTemporal {
+  fecha: string;
+  fechaIso: string;
   publicaciones: number;
-  publicacionesCriticas: number;
+  publicacionesMedioRiesgo: number;
+  publicacionesAltoRiesgo: number;
   hechos: number;
-  indiceApologiaPromedio: number;
+  scoreSeveridadPromedio: number | null;
 }
+
+/** @deprecated Usar PuntoCorrelacionTemporal */
+export type PuntoCorrelacionHora = PuntoCorrelacionTemporal;
 
 export interface NarrativaRadarDato {
   id: NarrativaId;

@@ -2,6 +2,7 @@ import type { InteligenciaContextSnapshot } from "@/lib/db/inteligencia-context"
 import type { SenalEscalada } from "@/lib/inteligencia-schema";
 import {
   formatearHandle,
+  humanizarAutorReincidente,
   labelPlataforma,
   limpiarTextoParaLectura,
 } from "@/lib/texto-lectura";
@@ -93,13 +94,20 @@ function senalDesdeAlerta(
   a: InteligenciaContextSnapshot["alertas"][number],
 ): SenalEscalada {
   const grupo = a.grupoCriminal?.trim();
-  const titulo = limpiarTextoParaLectura(a.titulo);
-  const descRaw = limpiarTextoParaLectura(a.descripcion);
+  const humanizado = humanizarAutorReincidente({
+    titulo: a.titulo,
+    descripcion: a.descripcion,
+    plataforma: a.plataforma,
+    nMenciones: a.nMenciones,
+  });
+  const titulo = humanizado?.titulo ?? limpiarTextoParaLectura(a.titulo);
+  const descRaw =
+    humanizado?.descripcion ?? limpiarTextoParaLectura(a.descripcion);
 
   const zonaTxt = [a.municipio, a.estado].filter(Boolean).join(", ");
   const mencionesTxt =
-    a.nMenciones != null && a.nMenciones > 0
-      ? ` Se vinculan ${a.nMenciones} publicaciones del periodo.`
+    !humanizado && a.nMenciones != null && a.nMenciones > 0
+      ? ` En el monitoreo hay ${a.nMenciones} publicaciones vinculadas.`
       : "";
 
   return {
@@ -108,7 +116,7 @@ function senalDesdeAlerta(
     descripcion:
       descRaw.length > 0
         ? `${descRaw}${mencionesTxt}`
-        : `Se registró una alerta en el sistema por actividad relevante.${mencionesTxt}${
+        : `Se detectó actividad relevante en el monitoreo.${mencionesTxt}${
             zonaTxt ? ` Zona: ${zonaTxt}.` : ""
           }`,
     confianzaPct: toConfianzaPct(a.scoreConfianza),

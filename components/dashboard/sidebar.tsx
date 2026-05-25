@@ -13,7 +13,6 @@ import {
   PanelLeftOpen,
   Rss,
   Search,
-  Target,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +29,6 @@ type NavItem = {
 
 const nav: NavItem[] = [
   { href: "/dashboard", label: "Resumen", icon: LayoutDashboard },
-  { href: "/dashboard/narrativas", label: "Narrativas", icon: Target },
   { href: "/dashboard/fuentes", label: "Fuentes", icon: Rss },
   { href: "/Explorador", label: "Explorador", icon: Search },
   { href: "/Mapa", label: "Mapa", icon: Map },

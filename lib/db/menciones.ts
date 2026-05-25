@@ -1,4 +1,5 @@
 import { mapMencionRow, type MencionRow } from "@/lib/mappers/mencion";
+import { SQL_MENCION_ALTO_RIESGO } from "@/lib/nivel-riesgo";
 import type { Mencion } from "@/lib/types";
 
 import { getPool, sql } from "./mssql";
@@ -83,8 +84,12 @@ export async function listarMenciones(
     request.input("subTipo", sql.NVarChar(100), options.subTipo);
   }
   if (options.nivelRiesgo) {
-    conditions.push("nivel_riesgo = @nivelRiesgo");
-    request.input("nivelRiesgo", sql.NVarChar(50), options.nivelRiesgo);
+    if (options.nivelRiesgo.toLowerCase() === "alto") {
+      conditions.push(SQL_MENCION_ALTO_RIESGO);
+    } else {
+      conditions.push("LOWER(nivel_riesgo) = LOWER(@nivelRiesgo)");
+      request.input("nivelRiesgo", sql.NVarChar(50), options.nivelRiesgo);
+    }
   }
   if (options.grupoCriminal) {
     conditions.push("grupo_criminal = @grupoCriminal");

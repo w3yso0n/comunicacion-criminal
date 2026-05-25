@@ -1,3 +1,5 @@
+import { SQL_ALERTA_ALTO_RIESGO, SQL_MENCION_ALTO_RIESGO } from "@/lib/nivel-riesgo";
+
 import { getPool } from "./mssql";
 
 export interface DashboardKpis {
@@ -6,7 +8,7 @@ export interface DashboardKpis {
   scorePromedio: number;
   engagementTotal: number;
   totalAlertas: number;
-  alertasCriticas: number;
+  alertasAltoRiesgo: number;
   fuentesUnicas: number;
   municipiosAfectados: number;
 }
@@ -25,7 +27,7 @@ export async function getDashboardKpis(): Promise<DashboardKpis> {
     }>(`
       SELECT
         COUNT(*)                                                              AS total,
-        SUM(CASE WHEN LOWER(nivel_riesgo) IN ('alto','critico') THEN 1 ELSE 0 END) AS alto_riesgo,
+        SUM(CASE WHEN ${SQL_MENCION_ALTO_RIESGO} THEN 1 ELSE 0 END) AS alto_riesgo,
         AVG(CAST(ISNULL(score_severidad, 0) AS FLOAT))                        AS score_promedio,
         SUM(ISNULL(engagement_total, 0))                                      AS engagement_total,
         COUNT(DISTINCT handle)                                                AS fuentes,
@@ -34,11 +36,11 @@ export async function getDashboardKpis(): Promise<DashboardKpis> {
     `),
     pool.request().query<{
       total: number;
-      criticas: number;
+      alto_riesgo: number;
     }>(`
       SELECT
-        COUNT(*)                                                        AS total,
-        SUM(CASE WHEN LOWER(nivel) IN ('crítica','critica') THEN 1 ELSE 0 END) AS criticas
+        COUNT(*) AS total,
+        SUM(CASE WHEN ${SQL_ALERTA_ALTO_RIESGO} THEN 1 ELSE 0 END) AS alto_riesgo
       FROM [Centinela].[Alertas]
     `),
   ]);
@@ -52,7 +54,7 @@ export async function getDashboardKpis(): Promise<DashboardKpis> {
     scorePromedio: Math.round(m?.score_promedio ?? 0),
     engagementTotal: m?.engagement_total ?? 0,
     totalAlertas: a?.total ?? 0,
-    alertasCriticas: a?.criticas ?? 0,
+    alertasAltoRiesgo: a?.alto_riesgo ?? 0,
     fuentesUnicas: m?.fuentes ?? 0,
     municipiosAfectados: m?.municipios ?? 0,
   };

@@ -1,9 +1,12 @@
+import {
+  agregarConteosPorRegion,
+  agregarSeriePorRegion,
+} from "@/lib/edomex-regiones";
 import type { TendenciaSerie } from "@/lib/inteligencia-schema";
 
 type PuntoDia = { dia: string; total: number };
 type SerieDia = { clave: string; dia: string; total: number };
 type SerieGrupoDia = { grupo: string; dia: string; total: number };
-type SerieZonaDia = { zona: string; dia: string; total: number };
 
 function slugify(text: string): string {
   return text
@@ -56,9 +59,9 @@ function buildSeries(
 export function buildTendenciasDesdeAgregados(input: {
   porDia: PuntoDia[];
   porGrupo: { grupo: string; total: number }[];
-  porZona: { zona: string; total: number }[];
+  porMunicipio: { municipio: string; total: number }[];
   serieGrupoPorDia: SerieGrupoDia[];
-  serieZonaPorDia: SerieZonaDia[];
+  serieMunicipioPorDia: { municipio: string; dia: string; total: number }[];
 }): {
   tendenciasEjeTemporal: string[];
   tendenciasPorGrupo: TendenciaSerie[];
@@ -71,10 +74,12 @@ export function buildTendenciasDesdeAgregados(input: {
     .slice(0, 3)
     .map((g) => ({ id: slugify(g.grupo), etiqueta: g.grupo }));
 
-  const topZonas = input.porZona
-    .filter((z) => z.zona !== "sin_zona")
-    .slice(0, 3)
-    .map((z) => ({ id: slugify(z.zona), etiqueta: z.zona }));
+  const topRegiones = agregarConteosPorRegion(input.porMunicipio)
+    .slice(0, 4)
+    .map(({ region }) => ({
+      id: slugify(region.etiqueta),
+      etiqueta: region.etiqueta,
+    }));
 
   const serieGrupo: SerieDia[] = input.serieGrupoPorDia.map((r) => ({
     clave: r.grupo,
@@ -82,8 +87,10 @@ export function buildTendenciasDesdeAgregados(input: {
     total: r.total,
   }));
 
-  const serieZona: SerieDia[] = input.serieZonaPorDia.map((r) => ({
-    clave: r.zona,
+  const serieRegion: SerieDia[] = agregarSeriePorRegion(
+    input.serieMunicipioPorDia,
+  ).map((r) => ({
+    clave: r.region.etiqueta,
     dia: r.dia,
     total: r.total,
   }));
@@ -91,6 +98,6 @@ export function buildTendenciasDesdeAgregados(input: {
   return {
     tendenciasEjeTemporal: eje,
     tendenciasPorGrupo: buildSeries(topGrupos, serieGrupo, indices),
-    tendenciasPorZona: buildSeries(topZonas, serieZona, indices),
+    tendenciasPorZona: buildSeries(topRegiones, serieRegion, indices),
   };
 }

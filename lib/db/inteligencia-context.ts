@@ -32,6 +32,7 @@ export type InteligenciaContextSnapshot = {
     alertasPorNivel: { nivel: string; total: number }[];
     serieGrupoPorDia: { grupo: string; dia: string; total: number }[];
     serieZonaPorDia: { zona: string; dia: string; total: number }[];
+    serieMunicipioPorDia: { municipio: string; dia: string; total: number }[];
   };
   menciones: {
     id: number;
@@ -121,6 +122,7 @@ type QueryBundle = {
   alertasNivel: { nivel: string; total: number }[];
   serieGrupoPorDia: { grupo: string; dia: string; total: number }[];
   serieZonaPorDia: { zona: string; dia: string; total: number }[];
+  serieMunicipioPorDia: { municipio: string; dia: string; total: number }[];
   mencionesRows: MencionRowDb[];
   alertasRows: AlertaRowDb[];
   autoresRows: AutorDestacadoRowDb[];
@@ -197,6 +199,7 @@ async function runContextQueries(
     alertasNivel,
     serieGrupoPorDia,
     serieZonaPorDia,
+    serieMunicipioPorDia,
     mencionesRows,
     alertasRows,
     autoresRows,
@@ -295,6 +298,17 @@ async function runContextQueries(
         ISNULL(NULLIF(LTRIM(RTRIM(m.zona)), ''), 'sin_zona'),
         CONVERT(VARCHAR(10), m.published_at, 23)
     `),
+    query<{ municipio: string; dia: string; total: number }>(`
+      SELECT
+        ISNULL(NULLIF(LTRIM(RTRIM(m.municipio)), ''), 'sin_municipio') AS municipio,
+        CONVERT(VARCHAR(10), m.published_at, 23) AS dia,
+        COUNT(*) AS total
+      ${baseMenciones}
+      AND m.published_at IS NOT NULL
+      GROUP BY
+        ISNULL(NULLIF(LTRIM(RTRIM(m.municipio)), ''), 'sin_municipio'),
+        CONVERT(VARCHAR(10), m.published_at, 23)
+    `),
     query<MencionRowDb>(`
       SELECT TOP ${TOP_MENCIONES}
         m.mencion_id,
@@ -370,6 +384,7 @@ async function runContextQueries(
     alertasNivel,
     serieGrupoPorDia,
     serieZonaPorDia,
+    serieMunicipioPorDia,
     mencionesRows,
     alertasRows,
     autoresRows,
@@ -476,6 +491,7 @@ function buildSnapshot(
       })),
       serieGrupoPorDia: bundle.serieGrupoPorDia,
       serieZonaPorDia: bundle.serieZonaPorDia,
+      serieMunicipioPorDia: bundle.serieMunicipioPorDia,
     },
     menciones,
     alertas,

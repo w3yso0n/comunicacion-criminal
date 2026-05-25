@@ -1,3 +1,5 @@
+import { SQL_MENCION_ALTO_RIESGO } from "@/lib/nivel-riesgo";
+
 import { getPool } from "./mssql";
 
 export interface MencionesStats {
@@ -20,7 +22,7 @@ export async function getMencionesStats(): Promise<MencionesStats> {
   }>(`
     SELECT
       COUNT(*) AS total,
-      SUM(CASE WHEN LOWER(nivel_riesgo) IN ('alto', 'critico') THEN 1 ELSE 0 END) AS alto_riesgo,
+      SUM(CASE WHEN ${SQL_MENCION_ALTO_RIESGO} THEN 1 ELSE 0 END) AS alto_riesgo,
       (
         SELECT TOP 1 nivel_riesgo
         FROM [Centinela].[Menciones]

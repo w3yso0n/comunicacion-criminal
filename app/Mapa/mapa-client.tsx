@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Search, SlidersHorizontal } from "lucide-react";
 
-import { MapaCalor } from "@/components/dashboard/mapa-calor";
 import { MencionCard } from "@/components/dashboard/mencion-card";
 import { Button } from "@/components/ui/button";
 import type { Mencion, NivelRiesgo } from "@/lib/types";
@@ -11,6 +11,18 @@ import { cn, formatIntegerEsMx } from "@/lib/utils";
 
 const PAGE_SIZE = 50;
 const MAPA_PAGE_SIZE = 200;
+
+const MapaCalor = dynamic(
+  () => import("@/components/dashboard/mapa-calor").then((m) => m.MapaCalor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center text-sm text-zinc-500">
+        Cargando mapa...
+      </div>
+    ),
+  },
+);
 
 const NIVELES_RIESGO: { value: NivelRiesgo | "todos"; label: string; color: string }[] = [
   { value: "todos",   label: "Todos",   color: "border-zinc-600 bg-zinc-800 text-zinc-100" },

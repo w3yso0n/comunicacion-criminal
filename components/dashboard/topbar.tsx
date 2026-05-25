@@ -6,7 +6,6 @@ import { ChevronRight } from "lucide-react";
 
 const segmentLabels: Record<string, string> = {
   dashboard: "Dashboard",
-  narrativas: "Narrativas",
   fuentes: "Fuentes",
   historial: "Historial",
   inteligencia: "Inteligencia estratégica",

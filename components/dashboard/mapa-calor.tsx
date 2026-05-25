@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "leaflet.heat";
+
 import type { Mencion, NivelRiesgo } from "@/lib/types";
 
 const NIVEL_PESO: Record<NivelRiesgo, number> = {
@@ -11,67 +15,50 @@ const NIVEL_PESO: Record<NivelRiesgo, number> = {
   neutral: 0.1,
 };
 
+const HEAT_GRADIENT: Record<number, string> = {
+  0.0: "rgba(0,100,255,0.35)",
+  0.25: "rgba(0,200,200,0.5)",
+  0.5: "rgba(0,255,100,0.65)",
+  0.75: "rgba(255,200,0,0.8)",
+  1.0: "rgba(255,50,0,0.95)",
+};
+
+type HeatLayer = L.HeatLayer;
+
 function pesoMencion(m: Mencion): number {
   const base = m.nivelRiesgo ? (NIVEL_PESO[m.nivelRiesgo] ?? 0.3) : 0.3;
   const score = (m.scoreSeveridad ?? 50) / 100;
   return base * 0.6 + score * 0.4;
 }
 
-declare global {
-  interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    google: any;
-    __gmapsLoaded?: boolean;
-    __gmapsCallbacks?: Array<() => void>;
-  }
-}
-
-function loadGoogleMaps(apiKey: string): Promise<void> {
-  return new Promise((resolve) => {
-    if (window.__gmapsLoaded) {
-      resolve();
-      return;
-    }
-    if (!window.__gmapsCallbacks) window.__gmapsCallbacks = [];
-    window.__gmapsCallbacks.push(resolve);
-
-    if (document.getElementById("gmaps-script")) return;
-
-    const script = document.createElement("script");
-    script.id = "gmaps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=visualization&callback=__gmapsInit`;
-    script.async = true;
-    script.defer = true;
-
-    (window as Window & { __gmapsInit?: () => void }).__gmapsInit = () => {
-      window.__gmapsLoaded = true;
-      window.__gmapsCallbacks?.forEach((cb) => cb());
-      window.__gmapsCallbacks = [];
-    };
-
-    document.head.appendChild(script);
-  });
+function colorNivelRiesgo(nivel?: NivelRiesgo): string {
+  if (nivel === "critico" || nivel === "alto") return "#f97316";
+  if (nivel === "medio") return "#eab308";
+  return "#22c55e";
 }
 
 interface Props {
   menciones: Mencion[];
   highlightedId?: string | null;
   onSelectMencion?: (m: Mencion | null) => void;
+  /** Vista compacta para el resumen: sin panel ni interacción de zoom. */
+  modo?: "completo" | "preview";
 }
 
-export function MapaCalor({ menciones, highlightedId, onSelectMencion }: Props) {
+export function MapaCalor({
+  menciones,
+  highlightedId,
+  onSelectMencion,
+  modo = "completo",
+}: Props) {
+  const esPreview = modo === "preview";
   const divRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const heatmapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markersRef = useRef<any[]>([]);
+  const mapRef = useRef<L.Map | null>(null);
+  const heatRef = useRef<HeatLayer | null>(null);
+  const markersRef = useRef<L.CircleMarker[]>([]);
+  const boundsAjustadosRef = useRef(false);
   const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Mencion | null>(null);
-
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
   const puntos = useMemo(
     () =>
@@ -86,136 +73,141 @@ export function MapaCalor({ menciones, highlightedId, onSelectMencion }: Props) 
     [menciones],
   );
 
+  const puntosKey = useMemo(
+    () =>
+      puntos
+        .map((p) => `${p.mencion.id}:${p.lat}:${p.lon}:${p.peso.toFixed(2)}`)
+        .join("|"),
+    [puntos],
+  );
+
+  const onSelectRef = useRef(onSelectMencion);
+  onSelectRef.current = onSelectMencion;
+
   useEffect(() => {
-    if (!apiKey) {
-      setError("Falta NEXT_PUBLIC_GOOGLE_MAPS_API_KEY en las variables de entorno.");
-      return;
-    }
-    loadGoogleMaps(apiKey)
-      .then(() => setReady(true))
-      .catch(() => setError("No se pudo cargar Google Maps."));
-  }, [apiKey]);
+    if (!divRef.current || mapRef.current) return;
 
-  // Construir/actualizar mapa y heatmap
+    const center: L.LatLngExpression =
+      puntos.length > 0 ? [puntos[0].lat, puntos[0].lon] : [19.5, -99.1];
+
+    const map = L.map(divRef.current, {
+      center,
+      zoom: 9,
+      zoomControl: !esPreview,
+      attributionControl: !esPreview,
+      dragging: !esPreview,
+      scrollWheelZoom: !esPreview,
+      doubleClickZoom: !esPreview,
+      touchZoom: !esPreview,
+      boxZoom: !esPreview,
+      keyboard: !esPreview,
+    });
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: "abcd",
+      maxZoom: 20,
+    }).addTo(map);
+
+    mapRef.current = map;
+    requestAnimationFrame(() => map.invalidateSize());
+    setReady(true);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      heatRef.current = null;
+      markersRef.current = [];
+      setReady(false);
+    };
+  // Solo montar el mapa una vez; el centro inicial usa el primer lote de puntos.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
-    if (!ready || !divRef.current) return;
+    if (!ready || !mapRef.current) return;
 
-    const google = window.google;
+    const map = mapRef.current;
+    const heatData: [number, number, number][] = puntos.map((p) => [
+      p.lat,
+      p.lon,
+      p.peso,
+    ]);
 
-    const center =
-      puntos.length > 0
-        ? { lat: puntos[0].lat, lng: puntos[0].lon }
-        : { lat: 19.5, lng: -99.1 };
-
-    if (!mapRef.current) {
-      mapRef.current = new google.maps.Map(divRef.current, {
-        center,
-        zoom: 9,
-        mapTypeId: "roadmap",
-        styles: darkMapStyles,
-        zoomControl: true,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-      });
+    if (heatRef.current) {
+      heatRef.current.setLatLngs(heatData);
+    } else {
+      heatRef.current = L.heatLayer(heatData, {
+        radius: 28,
+        blur: 22,
+        maxZoom: 14,
+        minOpacity: 0.35,
+        gradient: HEAT_GRADIENT,
+      }).addTo(map);
     }
 
-    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
-    const heatData = puntos.map((p) => ({
-      location: new google.maps.LatLng(p.lat, p.lon),
-      weight: p.peso,
-    }));
-
-    if (heatmapRef.current) {
-      heatmapRef.current.setData(heatData);
-    } else {
-      heatmapRef.current = new google.maps.visualization.HeatmapLayer({
-        data: heatData,
-        map: mapRef.current,
-        radius: 40,
-        opacity: 0.8,
-        gradient: [
-          "rgba(0,0,0,0)",
-          "rgba(0,100,255,0.4)",
-          "rgba(0,200,200,0.6)",
-          "rgba(0,255,100,0.7)",
-          "rgba(255,255,0,0.8)",
-          "rgba(255,150,0,0.9)",
-          "rgba(255,50,0,1)",
-          "rgba(200,0,0,1)",
-        ],
-      });
-    }
-
     puntos.forEach((p) => {
-      const color =
-        p.mencion.nivelRiesgo === "critico"
-          ? "#ef4444"
-          : p.mencion.nivelRiesgo === "alto"
-            ? "#f97316"
-            : p.mencion.nivelRiesgo === "medio"
-              ? "#eab308"
-              : "#22c55e";
+      const marker = L.circleMarker([p.lat, p.lon], {
+        radius: esPreview ? 5 : 7,
+        color: "#000",
+        weight: 1,
+        fillColor: colorNivelRiesgo(p.mencion.nivelRiesgo),
+        fillOpacity: 0.9,
+      }).addTo(map);
 
-      const marker = new google.maps.Marker({
-        position: { lat: p.lat, lng: p.lon },
-        map: mapRef.current,
-        title: p.mencion.descripcionCorta ?? p.mencion.contenido.slice(0, 60),
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 7,
-          fillColor: color,
-          fillOpacity: 0.9,
-          strokeColor: "#000",
-          strokeWeight: 1,
-        },
-      });
+      if (!esPreview) {
+        marker.bindTooltip(
+          p.mencion.descripcionCorta ?? p.mencion.contenido.slice(0, 60),
+          { direction: "top", opacity: 0.95 },
+        );
 
-      marker.addListener("click", () => {
-        setSelected(p.mencion);
-        onSelectMencion?.(p.mencion);
-      });
+        marker.on("click", () => {
+          setSelected(p.mencion);
+          onSelectRef.current?.(p.mencion);
+        });
+      }
+
       markersRef.current.push(marker);
     });
-  }, [ready, puntos, onSelectMencion]);
 
-  // Centrar mapa en elemento destacado desde la lista
+    if (puntos.length > 0 && !boundsAjustadosRef.current) {
+      const bounds = L.latLngBounds(puntos.map((p) => [p.lat, p.lon] as L.LatLngTuple));
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 12 });
+        boundsAjustadosRef.current = true;
+      }
+    }
+  }, [ready, puntosKey, esPreview]);
+
   useEffect(() => {
     if (!ready || !mapRef.current || !highlightedId) return;
     const punto = puntos.find((p) => p.mencion.id === highlightedId);
     if (punto) {
-      mapRef.current.panTo({ lat: punto.lat, lng: punto.lon });
-      mapRef.current.setZoom(12);
+      mapRef.current.setView([punto.lat, punto.lon], 12, { animate: true });
     }
-  }, [highlightedId, puntos, ready]);
+  }, [highlightedId, puntosKey, ready]);
 
   function handleClose() {
     setSelected(null);
-    onSelectMencion?.(null);
+    onSelectRef.current?.(null);
   }
 
   return (
     <div className="relative flex h-full w-full flex-col">
-      {error ? (
-        <div className="flex flex-1 items-center justify-center rounded-xl border border-red-900/40 bg-red-950/20 p-6 text-sm text-red-300">
-          {error}
-        </div>
-      ) : !ready ? (
+      {!ready ? (
         <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
           Cargando mapa...
         </div>
       ) : null}
 
-      <div
-        ref={divRef}
-        className="h-full w-full"
-        style={{ display: ready && !error ? "block" : "none" }}
-      />
+      <div ref={divRef} className="h-full w-full" />
 
-      {selected ? (
-        <div className="absolute bottom-4 left-4 z-10 w-80 rounded-xl border border-zinc-700 bg-zinc-900/95 p-4 shadow-2xl backdrop-blur-sm">
+      {selected && !esPreview ? (
+        <div className="absolute bottom-4 left-4 z-1000 w-80 rounded-xl border border-zinc-700 bg-zinc-900/95 p-4 shadow-2xl backdrop-blur-sm">
           <button
             type="button"
             className="absolute right-3 top-3 text-zinc-500 hover:text-zinc-200"
@@ -249,44 +241,3 @@ export function MapaCalor({ menciones, highlightedId, onSelectMencion }: Props) 
     </div>
   );
 }
-
-const darkMapStyles = [
-  { elementType: "geometry", stylers: [{ color: "#1a1a2e" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#1a1a2e" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#8b949e" }] },
-  {
-    featureType: "administrative.locality",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#d1d5db" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry",
-    stylers: [{ color: "#2d333b" }],
-  },
-  {
-    featureType: "road",
-    elementType: "geometry.stroke",
-    stylers: [{ color: "#161b22" }],
-  },
-  {
-    featureType: "road",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#6e7681" }],
-  },
-  {
-    featureType: "road.highway",
-    elementType: "geometry",
-    stylers: [{ color: "#30363d" }],
-  },
-  {
-    featureType: "water",
-    elementType: "geometry",
-    stylers: [{ color: "#0d1117" }],
-  },
-  {
-    featureType: "water",
-    elementType: "labels.text.fill",
-    stylers: [{ color: "#3b82f6" }],
-  },
-];
