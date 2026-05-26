@@ -14,6 +14,8 @@ export type ListarMencionesOptions = {
   subTipo?: string;
   nivelRiesgo?: string;
   grupoCriminal?: string;
+  /** Handle de la cuenta (con o sin @). */
+  handle?: string;
 };
 
 const SELECT_MENCIONES = `
@@ -94,6 +96,13 @@ export async function listarMenciones(
   if (options.grupoCriminal) {
     conditions.push("grupo_criminal = @grupoCriminal");
     request.input("grupoCriminal", sql.NVarChar(200), options.grupoCriminal);
+  }
+  if (options.handle) {
+    const handleNorm = options.handle.replace(/^@/, "").trim();
+    conditions.push(
+      "LOWER(LTRIM(RTRIM(REPLACE(handle, '@', '')))) = LOWER(@handleNorm)",
+    );
+    request.input("handleNorm", sql.NVarChar(200), handleNorm);
   }
 
   if (conditions.length > 0) {

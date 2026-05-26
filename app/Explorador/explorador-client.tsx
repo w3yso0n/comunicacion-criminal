@@ -305,7 +305,7 @@ export function ExploradorClient() {
         <div className="h-4 w-px shrink-0 bg-zinc-700/60" />
 
         {/* Plataforma */}
-        <Select value={filtros.plataforma || undefined} onValueChange={(v) => aplicarFiltro("plataforma", v)}>
+        <Select value={filtros.plataforma || undefined} onValueChange={(v) => aplicarFiltro("plataforma", v ?? "")}>
           <SelectTrigger className={cn(selectTriggerClass, "w-36", filtros.plataforma && "border-sky-700/60 text-sky-300")}>
             <SelectValue placeholder="Plataforma" />
           </SelectTrigger>
@@ -317,7 +317,7 @@ export function ExploradorClient() {
 
         {/* Municipio */}
         {municipiosDisponibles.length > 0 ? (
-          <Select value={filtros.municipio || undefined} onValueChange={(v) => aplicarFiltro("municipio", v)}>
+          <Select value={filtros.municipio || undefined} onValueChange={(v) => aplicarFiltro("municipio", v ?? "")}>
             <SelectTrigger className={cn(selectTriggerClass, "w-44", filtros.municipio && "border-sky-700/60 text-sky-300")}>
               <SelectValue placeholder="Municipio" />
             </SelectTrigger>
@@ -330,7 +330,7 @@ export function ExploradorClient() {
 
         {/* Zona */}
         {zonasDisponibles.length > 0 ? (
-          <Select value={filtros.zona || undefined} onValueChange={(v) => aplicarFiltro("zona", v)}>
+          <Select value={filtros.zona || undefined} onValueChange={(v) => aplicarFiltro("zona", v ?? "")}>
             <SelectTrigger className={cn(selectTriggerClass, "w-40", filtros.zona && "border-purple-700/60 text-purple-300")}>
               <SelectValue placeholder="Zona" />
             </SelectTrigger>
@@ -343,7 +343,7 @@ export function ExploradorClient() {
 
         {/* Sub tipo */}
         {subTiposDisponibles.length > 0 ? (
-          <Select value={filtros.subTipo || undefined} onValueChange={(v) => aplicarFiltro("subTipo", v)}>
+          <Select value={filtros.subTipo || undefined} onValueChange={(v) => aplicarFiltro("subTipo", v ?? "")}>
             <SelectTrigger className={cn(selectTriggerClass, "w-36", filtros.subTipo && "border-amber-700/60 text-amber-300")}>
               <SelectValue placeholder="Sub tipo" />
             </SelectTrigger>
@@ -356,7 +356,7 @@ export function ExploradorClient() {
 
         {/* Grupo criminal */}
         {gruposDisponibles.length > 0 ? (
-          <Select value={filtros.grupoCriminal || undefined} onValueChange={(v) => aplicarFiltro("grupoCriminal", v)}>
+          <Select value={filtros.grupoCriminal || undefined} onValueChange={(v) => aplicarFiltro("grupoCriminal", v ?? "")}>
             <SelectTrigger className={cn(selectTriggerClass, "w-44", filtros.grupoCriminal && "border-orange-700/60 text-orange-300")}>
               <SelectValue placeholder="Grupo criminal" />
             </SelectTrigger>

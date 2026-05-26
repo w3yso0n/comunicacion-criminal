@@ -29,6 +29,7 @@ export async function GET(req: Request) {
   const subTipo = searchParams.get("subTipo") ?? undefined;
   const nivelRiesgo = searchParams.get("nivelRiesgo") ?? undefined;
   const grupoCriminal = searchParams.get("grupoCriminal") ?? undefined;
+  const handle = searchParams.get("handle") ?? undefined;
 
   try {
     const data = await listarMenciones({
@@ -41,6 +42,7 @@ export async function GET(req: Request) {
       subTipo,
       nivelRiesgo,
       grupoCriminal,
+      handle,
     });
     return NextResponse.json({ ok: true, data, hasMore: data.length === limit });
   } catch (err) {

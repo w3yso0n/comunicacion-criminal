@@ -12,9 +12,10 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import Link from "next/link";
 import { BadgeCheck, Send, Twitter } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScoreBar } from "@/components/dashboard/score-bar";
 import { RiskBadge } from "@/components/dashboard/risk-badge";
@@ -130,6 +131,22 @@ export function FuentesTableReal({ data }: { data: Fuente[] }) {
           <span className="text-xs text-zinc-500">
             {formatDistanceToNow(new Date(ctx.getValue()), { addSuffix: true, locale: es })}
           </span>
+        ),
+      }),
+      col.display({
+        id: "acciones",
+        header: "Acciones",
+        cell: (ctx) => (
+          <Link
+            href={`/dashboard/fuentes/historial?handle=${encodeURIComponent(ctx.row.original.handle)}`}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "h-8 text-xs",
+            )}
+          >
+            Ver menciones
+          </Link>
         ),
       }),
     ],
