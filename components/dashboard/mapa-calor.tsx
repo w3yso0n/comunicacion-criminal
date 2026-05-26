@@ -37,6 +37,21 @@ function colorNivelRiesgo(nivel?: NivelRiesgo): string {
   return "#22c55e";
 }
 
+function contenedorListo(el: HTMLElement | null): el is HTMLElement {
+  return Boolean(el && el.isConnected && el.offsetWidth > 0 && el.offsetHeight > 0);
+}
+
+function invalidateSizeSeguro(map: L.Map | null) {
+  if (!map) return;
+  try {
+    const container = map.getContainer();
+    if (!container?.isConnected) return;
+    map.invalidateSize();
+  } catch {
+    // Mapa ya destruido (p. ej. doble montaje en Strict Mode)
+  }
+}
+
 interface Props {
   menciones: Mencion[];
   highlightedId?: string | null;
@@ -85,45 +100,81 @@ export function MapaCalor({
   onSelectRef.current = onSelectMencion;
 
   useEffect(() => {
-    if (!divRef.current || mapRef.current) return;
+    if (mapRef.current) return;
 
-    const center: L.LatLngExpression =
-      puntos.length > 0 ? [puntos[0].lat, puntos[0].lon] : [19.5, -99.1];
+    let cancelled = false;
+    let rafId = 0;
+    let resizeObserver: ResizeObserver | null = null;
+    let map: L.Map | null = null;
 
-    const map = L.map(divRef.current, {
-      center,
-      zoom: 9,
-      zoomControl: !esPreview,
-      attributionControl: !esPreview,
-      dragging: !esPreview,
-      scrollWheelZoom: !esPreview,
-      doubleClickZoom: !esPreview,
-      touchZoom: !esPreview,
-      boxZoom: !esPreview,
-      keyboard: !esPreview,
-    });
+    const finalizarMontaje = () => {
+      if (cancelled || !map) return;
+      invalidateSizeSeguro(map);
+      setReady(true);
+    };
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: "abcd",
-      maxZoom: 20,
-    }).addTo(map);
+    const montarMapa = () => {
+      if (cancelled || mapRef.current || !divRef.current) return;
+      if (!contenedorListo(divRef.current)) {
+        rafId = requestAnimationFrame(montarMapa);
+        return;
+      }
 
-    mapRef.current = map;
-    requestAnimationFrame(() => map.invalidateSize());
-    setReady(true);
+      const center: L.LatLngExpression =
+        puntos.length > 0 ? [puntos[0].lat, puntos[0].lon] : [19.5, -99.1];
+
+      map = L.map(divRef.current, {
+        center,
+        zoom: 9,
+        zoomControl: !esPreview,
+        attributionControl: !esPreview,
+        dragging: !esPreview,
+        scrollWheelZoom: !esPreview,
+        doubleClickZoom: !esPreview,
+        touchZoom: !esPreview,
+        boxZoom: !esPreview,
+        keyboard: !esPreview,
+      });
+
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: "abcd",
+        maxZoom: 20,
+      }).addTo(map);
+
+      mapRef.current = map;
+      rafId = requestAnimationFrame(finalizarMontaje);
+
+      resizeObserver = new ResizeObserver(() => {
+        if (mapRef.current === map) invalidateSizeSeguro(map);
+      });
+      resizeObserver.observe(divRef.current);
+    };
+
+    montarMapa();
 
     return () => {
-      map.remove();
+      cancelled = true;
+      cancelAnimationFrame(rafId);
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+      if (map) {
+        try {
+          map.remove();
+        } catch {
+          /* ya destruido */
+        }
+      }
       mapRef.current = null;
       heatRef.current = null;
       markersRef.current = [];
+      boundsAjustadosRef.current = false;
       setReady(false);
     };
-  // Solo montar el mapa una vez; el centro inicial usa el primer lote de puntos.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Solo montar el mapa una vez; el centro inicial usa el primer lote de puntos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [esPreview]);
 
   useEffect(() => {
     if (!ready || !mapRef.current) return;
@@ -177,8 +228,12 @@ export function MapaCalor({
     if (puntos.length > 0 && !boundsAjustadosRef.current) {
       const bounds = L.latLngBounds(puntos.map((p) => [p.lat, p.lon] as L.LatLngTuple));
       if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 12 });
-        boundsAjustadosRef.current = true;
+        try {
+          map.fitBounds(bounds, { padding: [32, 32], maxZoom: 12 });
+          boundsAjustadosRef.current = true;
+        } catch {
+          /* mapa no listo */
+        }
       }
     }
   }, [ready, puntosKey, esPreview]);
@@ -186,8 +241,11 @@ export function MapaCalor({
   useEffect(() => {
     if (!ready || !mapRef.current || !highlightedId) return;
     const punto = puntos.find((p) => p.mencion.id === highlightedId);
-    if (punto) {
+    if (!punto) return;
+    try {
       mapRef.current.setView([punto.lat, punto.lon], 12, { animate: true });
+    } catch {
+      /* mapa no listo */
     }
   }, [highlightedId, puntosKey, ready]);
 
@@ -198,13 +256,17 @@ export function MapaCalor({
 
   return (
     <div className="relative flex h-full w-full flex-col">
+      <div
+        ref={divRef}
+        className="h-full w-full"
+        aria-hidden={!ready}
+      />
+
       {!ready ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-zinc-500">
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-zinc-950/80 text-sm text-zinc-500">
           Cargando mapa...
         </div>
       ) : null}
-
-      <div ref={divRef} className="h-full w-full" />
 
       {selected && !esPreview ? (
         <div className="absolute bottom-4 left-4 z-1000 w-80 rounded-xl border border-zinc-700 bg-zinc-900/95 p-4 shadow-2xl backdrop-blur-sm">

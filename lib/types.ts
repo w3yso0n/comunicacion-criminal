@@ -184,11 +184,13 @@ export interface PuntoCorrelacionTemporal {
 export type PuntoCorrelacionHora = PuntoCorrelacionTemporal;
 
 export interface NarrativaRadarDato {
-  id: NarrativaId;
+  /** Valor de `sub_tipo` en BD. */
+  id: string;
   label: string;
   valor: number;
-  variacionSemanalPct: number;
+  variacionMesPct: number;
   descripcion: string;
+  menciones: number;
 }
 
 export interface CategoriaDistribucion {

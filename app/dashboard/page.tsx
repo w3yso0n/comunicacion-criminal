@@ -18,6 +18,7 @@ import { CorrelacionTemporalChart } from "@/components/dashboard/correlacion-tem
 import { EngagementBars } from "@/components/dashboard/engagement-bars";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MapaPreview } from "@/components/dashboard/mapa-preview";
+import { RadarNarrativas } from "@/components/dashboard/radar-narrativas";
 import { isAlertaNueva, useAlertsStore } from "@/lib/stores/alerts-store";
 import { esAlertaAltoRiesgo } from "@/lib/nivel-riesgo";
 import type { DashboardKpis } from "@/lib/db/dashboard-kpis";
@@ -160,6 +161,12 @@ export default function DashboardResumenPage() {
             <CategoriaDonut />
           </ChartErrorBoundary>
         </div>
+      </motion.section>
+
+      <motion.section variants={item}>
+        <ChartErrorBoundary title="Subtipos de menciones">
+          <RadarNarrativas />
+        </ChartErrorBoundary>
       </motion.section>
 
       <motion.section variants={item}>

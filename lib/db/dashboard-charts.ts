@@ -2,21 +2,25 @@ import {
   SQL_MENCION_ALTO_RIESGO,
   SQL_MENCION_MEDIO_RIESGO,
 } from "@/lib/nivel-riesgo";
+import { buildNarrativasRadar } from "@/lib/narrativas-radar";
 import type {
   CategoriaDistribucion,
   EngagementPorCategoria,
+  NarrativaRadarDato,
   PuntoCorrelacionTemporal,
 } from "@/lib/types";
 
 import { getPool } from "./mssql";
 
 const DIAS_VENTANA = 90;
+const DIAS_NARRATIVAS = 30;
 
 export interface DashboardChartsData {
   correlacionPorDia: PuntoCorrelacionTemporal[];
   diasPicoDetectados: number[];
   categoriaDistribucion: CategoriaDistribucion[];
   engagementPorCategoria: EngagementPorCategoria[];
+  narrativasRadar: NarrativaRadarDato[];
 }
 
 function labelFromKey(key: string): string {
@@ -68,7 +72,7 @@ function emptyDaySeries(days: number): PuntoCorrelacionTemporal[] {
 export async function getDashboardCharts(): Promise<DashboardChartsData> {
   const pool = await getPool();
 
-  const [porDia, porTipo, engagementPorTipo, engagementTotalRow] =
+  const [porDia, porTipo, engagementPorTipo, porSubTipo, engagementTotalRow] =
     await Promise.all([
       pool.request().query<{
         dia: Date | string;
@@ -109,6 +113,55 @@ export async function getDashboardCharts(): Promise<DashboardChartsData> {
           SUM(ISNULL(engagement_total, 0)) AS engagement
         FROM [Centinela].[Menciones]
         GROUP BY ISNULL(NULLIF(LTRIM(RTRIM(tipo_principal)), ''), 'sin_clasificar')
+      `),
+      pool.request().query<{
+        id: string;
+        total: number;
+        score_promedio: number;
+        prev_total: number;
+        ejemplo: string | null;
+      }>(`
+        WITH actual AS (
+          SELECT
+            LTRIM(RTRIM(sub_tipo)) AS id,
+            COUNT(*) AS total,
+            AVG(CAST(ISNULL(score_severidad, 0) AS FLOAT)) AS score_promedio
+          FROM [Centinela].[Menciones]
+          WHERE published_at >= DATEADD(DAY, -${DIAS_NARRATIVAS}, SYSUTCDATETIME())
+            AND sub_tipo IS NOT NULL
+            AND LTRIM(RTRIM(sub_tipo)) <> ''
+          GROUP BY LTRIM(RTRIM(sub_tipo))
+        ),
+        anterior AS (
+          SELECT
+            LTRIM(RTRIM(sub_tipo)) AS id,
+            COUNT(*) AS total
+          FROM [Centinela].[Menciones]
+          WHERE published_at >= DATEADD(DAY, -${DIAS_NARRATIVAS * 2}, SYSUTCDATETIME())
+            AND published_at < DATEADD(DAY, -${DIAS_NARRATIVAS}, SYSUTCDATETIME())
+            AND sub_tipo IS NOT NULL
+            AND LTRIM(RTRIM(sub_tipo)) <> ''
+          GROUP BY LTRIM(RTRIM(sub_tipo))
+        )
+        SELECT
+          a.id,
+          a.total,
+          a.score_promedio,
+          ISNULL(p.total, 0) AS prev_total,
+          (
+            SELECT TOP 1 COALESCE(
+              NULLIF(LTRIM(RTRIM(m.descripcion_corta)), ''),
+              NULLIF(LEFT(LTRIM(RTRIM(m.contenido)), 220), ''),
+              NULLIF(LTRIM(RTRIM(m.analisis_ia)), '')
+            )
+            FROM [Centinela].[Menciones] m
+            WHERE LTRIM(RTRIM(m.sub_tipo)) = a.id
+              AND m.published_at >= DATEADD(DAY, -${DIAS_NARRATIVAS}, SYSUTCDATETIME())
+            ORDER BY ISNULL(m.score_severidad, 0) DESC, m.published_at DESC
+          ) AS ejemplo
+        FROM actual a
+        LEFT JOIN anterior p ON p.id = a.id
+        ORDER BY a.total DESC
       `),
       pool.request().query<{ engagement_total: number }>(`
         SELECT SUM(ISNULL(engagement_total, 0)) AS engagement_total
@@ -175,10 +228,13 @@ export async function getDashboardCharts(): Promise<DashboardChartsData> {
     };
   });
 
+  const narrativasRadar = buildNarrativasRadar(porSubTipo.recordset);
+
   return {
     correlacionPorDia,
     diasPicoDetectados,
     categoriaDistribucion,
     engagementPorCategoria,
+    narrativasRadar,
   };
 }
