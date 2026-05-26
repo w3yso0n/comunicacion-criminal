@@ -131,6 +131,8 @@ export interface Mencion {
   autorNombre?: string;
   autorVerificado?: boolean;
   autorSeguidores?: number;
+  /** Valor de `perspectiva_autor` en BD: Informativo, Ciudadano o Criminal. */
+  perspectivaAutor?: string;
   contenido: string;
   descripcionCorta?: string;
   municipio?: string;

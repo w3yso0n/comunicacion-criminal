@@ -6,6 +6,7 @@ import {
   type InteligenciaContextSnapshot,
 } from "@/lib/db/inteligencia-context";
 import {
+  actualizarTendenciasEnPayload,
   buildCatalogoGrupos,
   buildNarrativasDesdeCatalogo,
   buildNarrativasDesdeSeleccionLlm,
@@ -120,6 +121,8 @@ export async function analyzeInteligencia(options: {
     } else if (catalogo.length > 0) {
       data.narrativasPorGrupo = buildNarrativasDesdeCatalogo(context, catalogo);
     }
+
+    data = actualizarTendenciasEnPayload(data, context, data.narrativasPorGrupo);
 
     const validado = inteligenciaPayloadSchema.safeParse(data);
     if (!validado.success) {

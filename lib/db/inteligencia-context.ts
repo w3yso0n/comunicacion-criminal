@@ -1,5 +1,7 @@
 import { createHash } from "crypto";
 
+import { SQL_MENCIONES_INTELIGENCIA } from "@/lib/perspectiva-autor";
+
 import { getPool, sql } from "./mssql";
 
 export type InteligenciaFiltros = {
@@ -520,6 +522,7 @@ export async function getInteligenciaContext(
   const baseMenciones = `
     FROM [Centinela].[Menciones] m
     WHERE 1=1
+    ${SQL_MENCIONES_INTELIGENCIA}
     ${mRegion}
   `;
   const baseAlertas = `

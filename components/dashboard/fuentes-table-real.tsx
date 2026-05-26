@@ -17,6 +17,7 @@ import { BadgeCheck, Send, Twitter } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PerspectivaAutorBadge } from "@/components/dashboard/perspectiva-autor-badge";
 import { ScoreBar } from "@/components/dashboard/score-bar";
 import { RiskBadge } from "@/components/dashboard/risk-badge";
 import type { Fuente } from "@/lib/db/fuentes";
@@ -79,6 +80,10 @@ export function FuentesTableReal({ data }: { data: Fuente[] }) {
             </div>
           );
         },
+      }),
+      col.accessor("perspectivaDominante", {
+        header: "Perspectiva",
+        cell: (ctx) => <PerspectivaAutorBadge value={ctx.getValue()} />,
       }),
       col.accessor("autorSeguidores", {
         header: "Seguidores",

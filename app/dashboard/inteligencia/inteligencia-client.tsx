@@ -32,7 +32,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { emptyInteligenciaPayload } from "@/lib/inteligencia-empty";
-import type { InteligenciaIAPayload } from "@/lib/inteligencia-schema";
+import type { InteligenciaIAPayload, TendenciaSerie } from "@/lib/inteligencia-schema";
 import { useDashboardFiltersStore } from "@/lib/stores/dashboard-filters-store";
 import { labelPrioridad } from "@/lib/db/inteligencia-senales";
 import { regionCoincideFiltro } from "@/lib/db/inteligencia-zonas";
@@ -60,6 +60,16 @@ function tendenciaArrow(t: "sube" | "baja" | "estable") {
   return "→";
 }
 
+function tendenciasGrupoVisibles(
+  data: InteligenciaIAPayload,
+  narrativasIds: Set<string>,
+): TendenciaSerie[] {
+  if (data.tendenciasPorGrupo.length === 0) return [];
+  if (narrativasIds.size === 0) return data.tendenciasPorGrupo;
+  const alineadas = data.tendenciasPorGrupo.filter((s) => narrativasIds.has(s.id));
+  return alineadas.length > 0 ? alineadas : data.tendenciasPorGrupo;
+}
+
 function filtrarPorRegion(
   data: InteligenciaIAPayload,
   region: string,
@@ -71,6 +81,7 @@ function filtrarPorRegion(
       n.estado.toLowerCase().includes(region.toLowerCase()),
   );
   const ids = new Set(narrativas.map((n) => n.grupoId));
+  const tendenciasPorGrupo = tendenciasGrupoVisibles(data, ids);
   return {
     ...data,
     narrativasPorGrupo: narrativas,
@@ -84,8 +95,10 @@ function filtrarPorRegion(
       regionCoincideFiltro(z, region),
     ),
     tendenciasEjeTemporal: data.tendenciasEjeTemporal,
-    tendenciasPorGrupo: data.tendenciasPorGrupo,
-    tendenciasPorZona: data.tendenciasPorZona,
+    tendenciasPorGrupo,
+    tendenciasPorZona: data.tendenciasPorZona.filter((z) =>
+      regionCoincideFiltro({ zona: z.etiqueta }, region),
+    ),
   };
 }
 
@@ -162,10 +175,14 @@ export function InteligenciaClient() {
     }
   }, [region]);
 
+  const seriesGrupo = useMemo(() => {
+    const ids = new Set(data.narrativasPorGrupo.map((n) => n.grupoId));
+    return tendenciasGrupoVisibles(data, ids);
+  }, [data]);
+
   const rowsGrupo = useMemo(
-    () =>
-      buildSerieRows(data.tendenciasEjeTemporal, data.tendenciasPorGrupo.slice(0, 4)),
-    [data.tendenciasEjeTemporal, data.tendenciasPorGrupo],
+    () => buildSerieRows(data.tendenciasEjeTemporal, seriesGrupo),
+    [data.tendenciasEjeTemporal, seriesGrupo],
   );
   const rowsZona = useMemo(
     () =>
@@ -191,7 +208,10 @@ export function InteligenciaClient() {
           </div>
           <p className="max-w-2xl text-xs text-zinc-500">
             Síntesis de narrativas, riesgo territorial y tendencias a partir de
-            menciones y alertas monitoreadas en el Estado de México.
+            menciones y alertas monitoreadas en el Estado de México. Solo incluye
+            menciones con perspectiva{" "}
+            <span className="text-emerald-400/90">Ciudadano</span> o{" "}
+            <span className="text-red-400/90">Criminal</span> (excluye Informativo).
           </p>
           {fuenteParam ? (
             <p className="text-[11px] text-zinc-400">
@@ -464,6 +484,12 @@ export function InteligenciaClient() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="grupo" className="mt-4">
+                {seriesGrupo.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-zinc-500">
+                    Sin grupos con menciones en el periodo analizado. Ejecuta
+                    &quot;Analizar con IA&quot; o amplía el filtro regional.
+                  </p>
+                ) : (
                 <div className="h-[280px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={rowsGrupo}>
@@ -479,7 +505,7 @@ export function InteligenciaClient() {
                         }}
                       />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
-                      {data.tendenciasPorGrupo.slice(0, 4).map((s, idx) => (
+                      {seriesGrupo.map((s, idx) => (
                         <Line
                           key={s.id}
                           type="monotone"
@@ -493,6 +519,7 @@ export function InteligenciaClient() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
+                )}
               </TabsContent>
               <TabsContent value="zona" className="mt-4">
                 <div className="h-[280px] w-full">

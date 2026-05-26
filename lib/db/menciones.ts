@@ -50,7 +50,8 @@ const SELECT_MENCIONES = `
     cluster_role,
     captura_url,
     lat,
-    lon
+    lon,
+    perspectiva_autor
   FROM [Centinela].[Menciones]
 `;
 

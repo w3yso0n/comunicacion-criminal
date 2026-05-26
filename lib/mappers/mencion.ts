@@ -33,6 +33,7 @@ export type MencionRow = {
   captura_url: string | null;
   lat: number | null;
   lon: number | null;
+  perspectiva_autor: string | null;
 };
 
 function toIsoDate(value: Date | string): string {
@@ -82,6 +83,7 @@ export function mapMencionRow(row: MencionRow): Mencion {
     autorNombre: row.autor_nombre ?? undefined,
     autorVerificado: mapVerificado(row.autor_verificado),
     autorSeguidores: row.autor_seguidores ?? undefined,
+    perspectivaAutor: row.perspectiva_autor?.trim() || undefined,
     contenido: row.contenido ?? "",
     descripcionCorta: row.descripcion_corta ?? undefined,
     municipio: row.municipio ?? undefined,

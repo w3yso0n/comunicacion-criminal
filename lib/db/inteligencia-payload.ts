@@ -126,11 +126,8 @@ export function buildNarrativasDesdeCatalogo(
   return catalogo.map((g) => buildNarrativaGrupo(ctx, g));
 }
 
-export function buildPayloadDesdeContexto(
-  ctx: InteligenciaContextSnapshot,
-  modelo: string,
-): InteligenciaIAPayload {
-  const tendencias = buildTendenciasDesdeAgregados({
+function agregadosParaTendencias(ctx: InteligenciaContextSnapshot) {
+  return {
     porDia: ctx.agregados.porDia,
     porGrupo: ctx.agregados.porGrupo.map((g) => ({
       grupo: g.grupo,
@@ -139,6 +136,47 @@ export function buildPayloadDesdeContexto(
     porMunicipio: ctx.agregados.porMunicipio,
     serieGrupoPorDia: ctx.agregados.serieGrupoPorDia,
     serieMunicipioPorDia: ctx.agregados.serieMunicipioPorDia,
+  };
+}
+
+/** Alinea tendencias con los grupos del catálogo o del análisis (no lista fija). */
+export function actualizarTendenciasEnPayload(
+  payload: InteligenciaIAPayload,
+  ctx: InteligenciaContextSnapshot,
+  narrativas: NarrativaGrupoActiva[],
+): InteligenciaIAPayload {
+  const gruposEnfasis =
+    narrativas.length > 0
+      ? narrativas.map((n) => ({ id: n.grupoId, etiqueta: n.grupoNombre }))
+      : buildCatalogoGrupos(ctx).map((g) => ({
+          id: g.grupoId,
+          etiqueta: g.grupoNombre,
+        }));
+
+  const tendencias = buildTendenciasDesdeAgregados({
+    ...agregadosParaTendencias(ctx),
+    gruposEnfasis,
+  });
+
+  return {
+    ...payload,
+    tendenciasEjeTemporal: tendencias.tendenciasEjeTemporal,
+    tendenciasPorGrupo: tendencias.tendenciasPorGrupo,
+    tendenciasPorZona: tendencias.tendenciasPorZona,
+  };
+}
+
+export function buildPayloadDesdeContexto(
+  ctx: InteligenciaContextSnapshot,
+  modelo: string,
+): InteligenciaIAPayload {
+  const catalogo = buildCatalogoGrupos(ctx);
+  const tendencias = buildTendenciasDesdeAgregados({
+    ...agregadosParaTendencias(ctx),
+    gruposEnfasis: catalogo.map((g) => ({
+      id: g.grupoId,
+      etiqueta: g.grupoNombre,
+    })),
   });
 
   return {
@@ -171,12 +209,15 @@ export function reconciliarPayloadConContexto(
       vectoresNarrativos: n.vectoresNarrativos,
     }));
 
-  return {
-    ...base,
-    narrativasPorGrupo: buildNarrativasDesdeSeleccionLlm(
-      ctx,
-      catalogo,
-      seleccion,
-    ),
-  };
+  const narrativas = buildNarrativasDesdeSeleccionLlm(
+    ctx,
+    catalogo,
+    seleccion,
+  );
+
+  return actualizarTendenciasEnPayload(
+    { ...base, narrativasPorGrupo: narrativas },
+    ctx,
+    narrativas,
+  );
 }

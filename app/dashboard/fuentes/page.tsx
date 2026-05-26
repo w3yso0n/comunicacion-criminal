@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FuentesTableReal } from "@/components/dashboard/fuentes-table-real";
 import type { Fuente } from "@/lib/db/fuentes";
+import {
+  labelPerspectivaAutor,
+  PERSPECTIVAS_AUTOR,
+  type PerspectivaAutor,
+} from "@/lib/perspectiva-autor";
 import { cn, formatIntegerEsMx } from "@/lib/utils";
 
 interface Stats {
@@ -13,7 +18,22 @@ interface Stats {
   altoRiesgo: number;
 }
 
-function StatMini({ label, value, loading, className }: {
+type PerspectivaFiltro = PerspectivaAutor | "todas";
+
+const FILTROS: { id: PerspectivaFiltro; label: string }[] = [
+  { id: "todas", label: "Todas" },
+  ...PERSPECTIVAS_AUTOR.map((id) => ({
+    id,
+    label: labelPerspectivaAutor(id),
+  })),
+];
+
+function StatMini({
+  label,
+  value,
+  loading,
+  className,
+}: {
   label: string;
   value: number;
   loading: boolean;
@@ -36,14 +56,18 @@ function StatMini({ label, value, loading, className }: {
 export default function FuentesPage() {
   const [fuentes, setFuentes] = useState<Fuente[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [perspectiva, setPerspectiva] = useState<PerspectivaFiltro>("todas");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/fuentes");
+      const params = new URLSearchParams();
+      if (perspectiva !== "todas") params.set("perspectiva", perspectiva);
+      const qs = params.toString();
+      const res = await fetch(`/api/fuentes${qs ? `?${qs}` : ""}`);
       const json = (await res.json()) as {
         ok: boolean;
         fuentes?: Fuente[];
@@ -58,18 +82,42 @@ export default function FuentesPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [perspectiva]);
 
-  useEffect(() => { void fetchData(); }, []);
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   return (
     <div className="mx-auto max-w-[1200px] space-y-6">
       <header className="space-y-1">
         <h1 className="text-lg font-semibold text-zinc-100">Fuentes monitoreadas</h1>
         <p className="text-xs text-zinc-500">
-          Cuentas y canales agrupados por handle, ordenados por número de menciones y severidad.
+          Cuentas agrupadas por handle. Filtra por perspectiva del autor según el campo{" "}
+          <span className="font-mono text-zinc-400">perspectiva_autor</span> en la base de datos.
         </p>
       </header>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+          Perspectiva
+        </span>
+        {FILTROS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setPerspectiva(f.id)}
+            className={cn(
+              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              perspectiva === f.id
+                ? "border-sky-700/60 bg-sky-950/40 text-sky-300"
+                : "border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatMini label="Total fuentes" value={stats?.total ?? 0} loading={loading} />
@@ -91,7 +139,13 @@ export default function FuentesPage() {
       {error ? (
         <div className="rounded-xl border border-red-900/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
           <p>{error}</p>
-          <Button type="button" variant="outline" size="sm" className="mt-3 border-red-800/60" onClick={() => void fetchData()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3 border-red-800/60"
+            onClick={() => void fetchData()}
+          >
             Reintentar
           </Button>
         </div>
