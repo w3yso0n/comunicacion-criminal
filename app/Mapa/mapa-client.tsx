@@ -12,8 +12,8 @@ import { cn, formatIntegerEsMx } from "@/lib/utils";
 const PAGE_SIZE = 50;
 const MAPA_PAGE_SIZE = 200;
 
-const MapaCalor = dynamic(
-  () => import("@/components/dashboard/mapa-calor").then((m) => m.MapaCalor),
+const MapaCoropletico = dynamic(
+  () => import("@/components/dashboard/mapa-coropletico").then((m) => m.MapaCoropletico),
   {
     ssr: false,
     loading: () => (
@@ -32,8 +32,8 @@ const NIVELES_RIESGO: { value: NivelRiesgo | "todos"; label: string; color: stri
 ];
 
 export function MapaClient() {
-  // — mapa: primeros 200 puntos con coordenadas + paginación propia
-  const [puntosCalor, setPuntosCalor] = useState<Mencion[]>([]);
+  // — mapa: primeras 200 menciones + paginación propia (agregación por municipio)
+  const [mencionesMapa, setMencionesMapa] = useState<Mencion[]>([]);
   const [mapaLoading, setMapaLoading] = useState(true);
   const [mapaOffset, setMapaOffset] = useState(0);
   const [mapaHasMore, setMapaHasMore] = useState(false);
@@ -55,13 +55,13 @@ export function MapaClient() {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Carga inicial del mapa — solo 200 puntos
-  const fetchPuntosCalor = useCallback(async () => {
+  const fetchMencionesMapa = useCallback(async () => {
     setMapaLoading(true);
     try {
       const res = await fetch(`/api/menciones?limit=${MAPA_PAGE_SIZE}&offset=0`);
       const json = (await res.json()) as { ok: boolean; data?: Mencion[]; hasMore?: boolean };
       if (!json.ok || !json.data) return;
-      setPuntosCalor(json.data.filter((m) => typeof m.lat === "number" && typeof m.lon === "number"));
+      setMencionesMapa(json.data);
       setMapaOffset(json.data.length);
       setMapaHasMore(json.hasMore ?? false);
     } catch {
@@ -79,10 +79,7 @@ export function MapaClient() {
       const res = await fetch(`/api/menciones?limit=${MAPA_PAGE_SIZE}&offset=${mapaOffset}`);
       const json = (await res.json()) as { ok: boolean; data?: Mencion[]; hasMore?: boolean };
       if (!json.ok || !json.data) return;
-      setPuntosCalor((prev) => [
-        ...prev,
-        ...json.data!.filter((m) => typeof m.lat === "number" && typeof m.lon === "number"),
-      ]);
+      setMencionesMapa((prev) => [...prev, ...json.data!]);
       setMapaOffset((prev) => prev + json.data!.length);
       setMapaHasMore(json.hasMore ?? false);
     } catch {
@@ -144,9 +141,9 @@ export function MapaClient() {
   }, [fetchMore]);
 
   useEffect(() => {
-    void fetchPuntosCalor();
+    void fetchMencionesMapa();
     void fetchFirst();
-  }, [fetchPuntosCalor, fetchFirst]);
+  }, [fetchMencionesMapa, fetchFirst]);
 
   // Filtros en cliente (sobre items ya cargados)
   const listadoFiltrado = useMemo(() => {
@@ -169,10 +166,18 @@ export function MapaClient() {
   const mapaFiltrado = useMemo(
     () =>
       filtroRiesgo === "todos"
-        ? puntosCalor
-        : puntosCalor.filter((m) => m.nivelRiesgo === filtroRiesgo),
-    [puntosCalor, filtroRiesgo],
+        ? mencionesMapa
+        : mencionesMapa.filter((m) => m.nivelRiesgo === filtroRiesgo),
+    [mencionesMapa, filtroRiesgo],
   );
+
+  const municipiosConDatos = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of mapaFiltrado) {
+      if (m.municipio?.trim()) set.add(m.municipio.trim());
+    }
+    return set.size;
+  }, [mapaFiltrado]);
 
   const loading = mapaLoading || listaLoading;
 
@@ -182,10 +187,11 @@ export function MapaClient() {
       <div ref={mapaRef} className="relative shrink-0 overflow-hidden rounded-xl border border-zinc-800/70" style={{ height: "45%" }}>
         <div className="absolute left-3 top-3 z-10 flex flex-col gap-1.5">
           <div className="rounded-lg border border-zinc-700/80 bg-zinc-900/90 px-3 py-1.5 backdrop-blur-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Mapa de calor</p>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Mapa coroplético</p>
             <p className="text-xs text-zinc-300">
-              <span className="font-semibold text-zinc-100">{formatIntegerEsMx(mapaFiltrado.length)}</span> puntos
-              {mapaHasMore ? <span className="text-zinc-500"> de {formatIntegerEsMx(mapaOffset)}+ cargados</span> : null}
+              <span className="font-semibold text-zinc-100">{formatIntegerEsMx(municipiosConDatos)}</span> municipios
+              · <span className="font-semibold text-zinc-100">{formatIntegerEsMx(mapaFiltrado.length)}</span> menciones
+              {mapaHasMore ? <span className="text-zinc-500"> de {formatIntegerEsMx(mapaOffset)}+ cargadas</span> : null}
             </p>
           </div>
           {mapaHasMore ? (
@@ -195,24 +201,24 @@ export function MapaClient() {
               disabled={mapaLoadingMore}
               className="rounded-lg border border-zinc-700/80 bg-zinc-900/90 px-3 py-1.5 text-[11px] font-medium text-zinc-300 backdrop-blur-sm transition-colors hover:border-sky-700/60 hover:text-sky-300 disabled:opacity-50"
             >
-              {mapaLoadingMore ? "Cargando..." : `+ 200 puntos más`}
+              {mapaLoadingMore ? "Cargando..." : `+ 200 menciones más`}
             </button>
           ) : null}
         </div>
 
         {mapaLoading ? (
           <div className="flex h-full items-center justify-center text-sm text-zinc-500">Cargando mapa...</div>
-        ) : error && puntosCalor.length === 0 ? (
+        ) : error && mencionesMapa.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6">
             <p className="text-sm text-red-300">{error}</p>
-            <Button type="button" variant="outline" size="sm" className="border-red-800/60" onClick={() => void fetchPuntosCalor()}>
+            <Button type="button" variant="outline" size="sm" className="border-red-800/60" onClick={() => void fetchMencionesMapa()}>
               Reintentar
             </Button>
           </div>
-        ) : puntosCalor.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-zinc-500">No hay menciones con coordenadas geográficas.</div>
+        ) : mencionesMapa.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-sm text-zinc-500">No hay menciones para mostrar en el mapa.</div>
         ) : (
-          <MapaCalor menciones={mapaFiltrado} highlightedId={highlighted} onSelectMencion={(m) => setHighlighted(m?.id ?? null)} />
+          <MapaCoropletico menciones={mapaFiltrado} highlightedId={highlighted} onSelectMencion={(m) => setHighlighted(m?.id ?? null)} />
         )}
       </div>
 
@@ -285,7 +291,7 @@ export function MapaClient() {
             <>
               <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2 xl:grid-cols-3">
                 {listadoFiltrado.map((m, i) => {
-                  const tieneCoordenadas = typeof m.lat === "number" && typeof m.lon === "number";
+                  const visibleEnMapa = Boolean(m.municipio?.trim());
                   return (
                     <li
                       key={m.id}
@@ -295,7 +301,7 @@ export function MapaClient() {
                       )}
                     >
                       <MencionCard mencion={m} index={i} />
-                      {tieneCoordenadas ? (
+                      {visibleEnMapa ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -310,7 +316,7 @@ export function MapaClient() {
                           )}
                         >
                           <MapPin className="size-3.5" />
-                          {highlighted === m.id ? "En el mapa" : "Ver en mapa"}
+                          {highlighted === m.id ? "En el mapa" : "Ver municipio"}
                         </button>
                       ) : null}
                     </li>

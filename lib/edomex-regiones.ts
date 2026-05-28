@@ -286,7 +286,7 @@ const ALIAS_MUNICIPIO: Record<string, string> = {
   "cuautitlan izcalli": "Cuautitlán Izcalli",
 };
 
-function normalizarTexto(raw: string): string {
+export function normalizarTexto(raw: string): string {
   return raw
     .trim()
     .toLowerCase()
@@ -306,6 +306,42 @@ for (const region of EDOMEX_REGIONES) {
 for (const [alias, canonico] of Object.entries(ALIAS_MUNICIPIO)) {
   const region = MUNICIPIO_A_REGION.get(normalizarTexto(canonico));
   if (region) MUNICIPIO_A_REGION.set(alias, region);
+}
+
+/** Empareja un nombre de municipio (BD) con el catálogo oficial del Edomex (p. ej. NOMGEO del GeoJSON). */
+export function emparejarMunicipioEdomex(
+  municipio: string | null | undefined,
+  nombresOficiales: ReadonlySet<string>,
+): string | null {
+  const raw = (municipio ?? "").trim();
+  if (!raw || raw === "sin_municipio") return null;
+
+  const porClave = new Map<string, string>();
+  for (const nombre of nombresOficiales) {
+    porClave.set(normalizarTexto(nombre), nombre);
+  }
+
+  const key = normalizarTexto(raw);
+  const directo = porClave.get(key);
+  if (directo) return directo;
+
+  const alias = ALIAS_MUNICIPIO[key];
+  if (alias) {
+    const porAlias = porClave.get(normalizarTexto(alias));
+    if (porAlias) return porAlias;
+  }
+
+  let mejor: string | null = null;
+  let mejorLen = 0;
+  for (const [municipioKey, nombre] of porClave.entries()) {
+    if (key.includes(municipioKey) || municipioKey.includes(key)) {
+      if (municipioKey.length > mejorLen) {
+        mejor = nombre;
+        mejorLen = municipioKey.length;
+      }
+    }
+  }
+  return mejor;
 }
 
 export function resolverRegionEdomex(
