@@ -170,7 +170,7 @@ export default function DashboardResumenPage() {
       </motion.section>
 
       <motion.section variants={item}>
-        <ChartErrorBoundary title="Mapa de calor">
+        <ChartErrorBoundary title="Mapa coroplético">
           <MapaPreview />
         </ChartErrorBoundary>
       </motion.section>

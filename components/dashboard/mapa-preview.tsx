@@ -10,8 +10,8 @@ import { formatIntegerEsMx } from "@/lib/utils";
 
 const PREVIEW_LIMIT = 150;
 
-const MapaCalor = dynamic(
-  () => import("@/components/dashboard/mapa-calor").then((m) => m.MapaCalor),
+const MapaCoropletico = dynamic(
+  () => import("@/components/dashboard/mapa-coropletico").then((m) => m.MapaCoropletico),
   {
     ssr: false,
     loading: () => (
@@ -42,8 +42,16 @@ export function MapaPreview() {
       .finally(() => setLoading(false));
   }, []);
 
-  const puntos = useMemo(
-    () => menciones.filter((m) => typeof m.lat === "number" && typeof m.lon === "number"),
+  const municipiosConDatos = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of menciones) {
+      if (m.municipio?.trim()) set.add(m.municipio.trim());
+    }
+    return set.size;
+  }, [menciones]);
+
+  const conMunicipio = useMemo(
+    () => menciones.filter((m) => m.municipio?.trim()),
     [menciones],
   );
 
@@ -53,25 +61,23 @@ export function MapaPreview() {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <MapPin className="size-3.5 shrink-0 text-sky-400" />
-            <h2 className="text-sm font-medium text-zinc-100">Mapa de calor</h2>
+            <h2 className="text-sm font-medium text-zinc-100">Mapa coroplético</h2>
           </div>
           <p className="mt-0.5 text-xs text-zinc-500">
             {loading ? (
-              "Cargando puntos geográficos..."
+              "Cargando municipios..."
             ) : error ? (
               error
             ) : (
               <>
                 <span className="font-medium text-zinc-300">
-                  {formatIntegerEsMx(puntos.length)}
+                  {formatIntegerEsMx(municipiosConDatos)}
                 </span>{" "}
-                menciones con coordenadas
-                {puntos.length < menciones.length ? (
-                  <span className="text-zinc-600">
-                    {" "}
-                    · {formatIntegerEsMx(menciones.length - puntos.length)} sin ubicación
-                  </span>
-                ) : null}
+                municipios ·{" "}
+                <span className="font-medium text-zinc-300">
+                  {formatIntegerEsMx(conMunicipio.length)}
+                </span>{" "}
+                menciones con municipio
               </>
             )}
           </p>
@@ -92,17 +98,17 @@ export function MapaPreview() {
           <div className="flex h-full items-center justify-center px-4 text-center text-sm text-red-300/90">
             {error}
           </div>
-        ) : puntos.length === 0 ? (
+        ) : conMunicipio.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
             <MapPin className="size-8 text-zinc-700" />
-            <p className="text-sm text-zinc-500">No hay menciones con coordenadas para mostrar.</p>
+            <p className="text-sm text-zinc-500">No hay menciones con municipio para mostrar.</p>
             <Link href="/Mapa" className="text-xs text-sky-400 hover:text-sky-300">
               Ir al mapa →
             </Link>
           </div>
         ) : (
           <>
-            <MapaCalor menciones={puntos} modo="preview" />
+            <MapaCoropletico menciones={conMunicipio} modo="preview" />
             <Link
               href="/Mapa"
               className="absolute inset-0 z-10 flex items-end justify-end bg-linear-to-t from-zinc-950/40 via-transparent to-transparent p-3 opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100"
